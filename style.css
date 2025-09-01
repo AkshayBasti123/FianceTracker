@@ -1,31 +1,13 @@
-/* General */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
   display: flex;
-  background: #f4f4f9;
-  transition: background 0.3s, color 0.3s;
 }
 
-body.dark {
-  background: #18181b;
-  color: #f4f4f9;
-}
-
-.dashboard {
-  display: flex;
-  width: 100%;
-}
-
-/* Sidebar */
 .sidebar {
   width: 60px;
-  background: #1f2937;
-  color: white;
+  background: #2c3e50;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   transition: width 0.3s;
   overflow: hidden;
   position: fixed;
@@ -35,164 +17,89 @@ body.dark {
   width: 200px;
 }
 
-.sidebar .logo {
-  font-size: 24px;
-  margin: 20px 0;
-}
-
-.sidebar nav {
+.sidebar-content {
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  margin-top: 30px;
-  width: 100%;
-  padding: 0 10px;
+  align-items: stretch;
+  padding-top: 20px;
 }
 
-.tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: transparent;
+.tab-button, #logoutBtn, #resetBtn {
+  background: none;
   border: none;
   color: white;
-  font-size: 16px;
-  padding: 12px;
-  border-radius: 8px;
+  text-align: left;
+  padding: 15px;
   cursor: pointer;
+  font-size: 16px;
   transition: all 0.3s;
-  width: 100%;
 }
 
-.tab-btn span {
-  display: none;
-}
-
-.sidebar:hover .tab-btn span {
-  display: inline;
-}
-
-.tab-btn:hover {
-  background: #374151;
+.tab-button:hover, #logoutBtn:hover, #resetBtn:hover {
+  background: #34495e;
   transform: scale(1.05);
 }
 
-.tab-btn.active {
-  background: #2563eb;
-}
-
-/* Main Content */
-.main {
+.main-content {
   margin-left: 60px;
-  flex: 1;
   padding: 20px;
+  width: 100%;
   transition: margin-left 0.3s;
 }
 
-.sidebar:hover ~ .main {
+.sidebar:hover ~ .main-content {
   margin-left: 200px;
 }
 
-/* Topbar */
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Tabs */
-.tab-content {
+.tab {
   display: none;
 }
-.tab-content.active {
+.tab.active {
   display: block;
 }
 
-/* Cards & Charts Layout */
-.overview-grid {
-  display: grid;
-  grid-template-columns: 1fr 0.8fr;
-  gap: 20px;
-}
-
 .cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 15px;
+  margin-bottom: 20px;
 }
-
 .card {
-  background: white;
+  flex: 1;
+  background: #ecf0f1;
   padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-}
-
-body.dark .card {
-  background: #27272a;
-}
-
-.charts {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.charts canvas {
-  max-height: 200px;
-  background: white;
-  border-radius: 12px;
-  padding: 10px;
-}
-
-body.dark .charts canvas {
-  background: #27272a;
-}
-
-/* Forms */
-form {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-  flex-wrap: wrap;
-}
-
-input, select, button {
-  padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid #ddd;
+  font-weight: bold;
 }
 
-button {
-  background: #2563eb;
-  color: white;
-  border: none;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-button:hover {
-  background: #1d4ed8;
-}
-
-/* Transaction List */
-#transaction-list {
-  list-style: none;
-  padding: 0;
-}
-#transaction-list li {
+form input, form select, form button {
+  margin: 5px;
   padding: 8px;
-  margin: 5px 0;
-  background: #e5e7eb;
-  border-radius: 6px;
 }
-body.dark #transaction-list li {
-  background: #3f3f46;
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: center;
+}
+
+#budgetList .budget-item {
+  margin: 10px 0;
+}
+.progress-bar {
+  background: #ccc;
+  border-radius: 5px;
+  height: 20px;
+  overflow: hidden;
+}
+.progress {
+  height: 100%;
+  background: #36a2eb;
+  text-align: right;
+  padding-right: 5px;
+  color: white;
 }
