@@ -1,99 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Finance Tracker Dashboard</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8" />
+  <title>Finance Tracker – Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <div id="app">
-    <!-- SIDEBAR -->
-    <nav class="sidebar">
-      <img src="LOGOCOMPANY.png" alt="Company Logo" class="logo">
-      <button data-tab="overview">Overview</button>
-      <button data-tab="transactions">Transactions</button>
-      <button data-tab="budget">Budget</button>
-      <button data-tab="reports">Reports</button>
-      <button data-tab="news">News</button>
-      <button data-tab="markets">Markets</button>
-      <button data-tab="assistant">AI Assistant</button>
-      <button data-tab="settings">Settings</button>
-    </nav>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <div class="brand">
+        <img src="LOGOCOMPANY.png" alt="Logo" />
+        <span class="brand-name">AKSHAY</span>
+      </div>
+      <nav class="nav">
+        <button data-tab="overview">
+          <span class="nav-ico">🏠</span><span class="nav-label">Overview</span>
+        </button>
+        <button data-tab="transactions">
+          <span class="nav-ico">🧾</span><span class="nav-label">Transactions</span>
+        </button>
+        <button data-tab="budget">
+          <span class="nav-ico">🎯</span><span class="nav-label">Budget</span>
+        </button>
+        <button data-tab="reports">
+          <span class="nav-ico">📊</span><span class="nav-label">Reports</span>
+        </button>
+        <button data-tab="news">
+          <span class="nav-ico">📰</span><span class="nav-label">News</span>
+        </button>
+        <button data-tab="markets">
+          <span class="nav-ico">📈</span><span class="nav-label">Markets</span>
+        </button>
+        <button data-tab="assistant">
+          <span class="nav-ico">🤖</span><span class="nav-label">AI Assistant</span>
+        </button>
+        <button data-tab="settings">
+          <span class="nav-ico">⚙️</span><span class="nav-label">Settings</span>
+        </button>
+      </nav>
+    </div>
+  </aside>
 
-    <!-- MAIN CONTENT -->
-    <main>
-      <!-- OVERVIEW -->
-      <div id="overview" class="tab-content">
-        <h2>Overview</h2>
-        <div class="overview-grid">
-          <div class="widget">
-            <canvas id="overviewChart"></canvas>
-          </div>
-          <div class="widget">
-            <h3>Quick Stats</h3>
-            <p id="balanceStat">Balance: $0</p>
-            <p id="incomeStat">Income: $0</p>
-            <p id="expenseStat">Expenses: $0</p>
+  <!-- MAIN -->
+  <main>
+    <!-- OVERVIEW -->
+    <section id="overview" class="tab-content">
+      <h2>Overview</h2>
+      <div class="grid two">
+        <div class="card chart-card">
+          <canvas id="overviewChart"></canvas>
+        </div>
+        <div class="card">
+          <h3>Quick Stats</h3>
+          <div class="stats">
+            <div><span>Balance:</span> <strong id="balanceStat">$0.00</strong></div>
+            <div><span>Income:</span> <strong id="incomeStat">$0.00</strong></div>
+            <div><span>Expenses:</span> <strong id="expenseStat">$0.00</strong></div>
           </div>
         </div>
       </div>
+    </section>
 
-      <!-- TRANSACTIONS -->
-      <div id="transactions" class="tab-content hidden">
-        <h2>Transactions</h2>
-        <form id="transactionForm">
-          <input type="text" id="tDesc" placeholder="Description" required>
-          <input type="number" id="tAmount" placeholder="Amount" required>
-          <select id="tType">
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-          </select>
-          <button type="submit">Add</button>
-        </form>
+    <!-- TRANSACTIONS -->
+    <section id="transactions" class="tab-content hidden">
+      <h2>Transactions</h2>
+      <form id="transactionForm" class="row gap">
+        <input type="text" id="tDesc" placeholder="Description" required />
+        <input type="number" id="tAmount" placeholder="Amount" step="0.01" required />
+        <select id="tType">
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+        <button type="submit" class="btn-primary">Add</button>
+      </form>
+
+      <div class="card table-wrap">
         <table id="transactionTable">
           <thead>
             <tr>
-              <th>Date</th><th>Description</th><th>Amount</th><th>Type</th><th>Action</th>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Amount</th>
+              <th>Type</th>
+              <th style="width:90px;">Action</th>
             </tr>
           </thead>
-          <tbody></tbody>
+          <tbody><!-- rows injected --></tbody>
         </table>
       </div>
+    </section>
 
-      <!-- BUDGET -->
-      <div id="budget" class="tab-content hidden">
-        <h2>Budget</h2>
-        <form id="budgetForm">
-          <input type="text" id="bCategory" placeholder="Category" required>
-          <input type="number" id="bLimit" placeholder="Limit ($)" required>
-          <button type="submit">Set</button>
-        </form>
-        <div id="budgetList"></div>
-      </div>
+    <!-- BUDGET -->
+    <section id="budget" class="tab-content hidden">
+      <h2>Budget</h2>
+      <form id="budgetForm" class="row gap">
+        <input type="text" id="bCategory" placeholder="Category (e.g., Groceries)" required />
+        <input type="number" id="bLimit" placeholder="Limit ($)" step="0.01" required />
+        <button class="btn-primary" type="submit">Set</button>
+      </form>
+      <div id="budgetList" class="grid two"><!-- cards injected --></div>
+    </section>
 
-      <!-- REPORTS -->
-      <div id="reports" class="tab-content hidden">
-        <h2>Reports</h2>
+    <!-- REPORTS -->
+    <section id="reports" class="tab-content hidden">
+      <h2>Reports</h2>
+      <div class="card chart-card">
         <canvas id="reportChart"></canvas>
       </div>
+    </section>
 
-      <!-- NEWS -->
-      <div id="news" class="tab-content hidden">
-        <h2>Finance News</h2>
-        <div id="newsList" class="news-grid">Loading news...</div>
-      </div>
+    <!-- NEWS -->
+    <section id="news" class="tab-content hidden">
+      <h2>Finance News</h2>
+      <div id="newsList" class="news-grid card p0"><!-- news injected --></div>
+    </section>
 
-      <!-- MARKETS -->
-      <div id="markets" class="tab-content hidden">
-        <h2>Markets</h2>
-        <div class="market-grid">
-          <div id="stockBox" class="widget">Loading AAPL stock...</div>
-          <div class="widget">
-            <h3>Currency Converter</h3>
-            <input type="number" id="currencyAmount" placeholder="Amount">
+    <!-- MARKETS -->
+    <section id="markets" class="tab-content hidden">
+      <h2>Markets</h2>
+      <div class="grid two">
+        <div id="stockBox" class="card">Loading AAPL stock...</div>
+
+        <div class="card">
+          <h3>Currency Converter</h3>
+          <div class="converter-row">
+            <input type="number" id="currencyAmount" placeholder="Amount" step="0.01" />
             <select id="currencyFrom">
-              <option value="USD">USD</option>
+              <option value="USD" selected>USD</option>
               <option value="EUR">EUR</option>
               <option value="GBP">GBP</option>
             </select>
@@ -102,34 +138,47 @@
               <option value="USD">USD</option>
               <option value="GBP">GBP</option>
             </select>
-            <button id="convertBtn">Convert</button>
-            <p id="currencyResult"></p>
+            <button id="convertBtn" class="btn-primary">Convert</button>
           </div>
-          <div id="cryptoBox" class="widget">Loading crypto...</div>
-          <div id="commodityBox" class="widget">Loading commodities...</div>
+          <p id="currencyResult" class="mt8"></p>
+        </div>
+
+        <div id="cryptoBox" class="card">Loading crypto...</div>
+        <div id="commodityBox" class="card">Loading commodities...</div>
+      </div>
+    </section>
+
+    <!-- AI ASSISTANT -->
+    <section id="assistant" class="tab-content hidden">
+      <h2>AI Assistant</h2>
+      <div id="chatbox" class="card chatbox"><!-- messages --></div>
+      <form id="chatForm" class="row gap mt12">
+        <input type="text" id="chatInput" placeholder="Ask anything about your finances..." />
+        <button class="btn-primary" type="submit">Send</button>
+      </form>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="settings" class="tab-content hidden">
+      <h2>Settings</h2>
+      <div class="grid three">
+        <div class="card">
+          <h3>Appearance</h3>
+          <button id="toggleDark" class="btn-secondary">Toggle Dark Mode</button>
+        </div>
+        <div class="card">
+          <h3>Data</h3>
+          <button id="resetData" class="btn-danger">Delete All Data</button>
+        </div>
+        <div class="card">
+          <h3>Account</h3>
+          <button id="logout" class="btn-secondary">Logout</button>
         </div>
       </div>
+    </section>
+  </main>
 
-      <!-- AI ASSISTANT -->
-      <div id="assistant" class="tab-content hidden">
-        <h2>AI Assistant</h2>
-        <div id="chatbox"></div>
-        <form id="chatForm">
-          <input type="text" id="chatInput" placeholder="Ask something...">
-          <button type="submit">Send</button>
-        </form>
-      </div>
-
-      <!-- SETTINGS -->
-      <div id="settings" class="tab-content hidden">
-        <h2>Settings</h2>
-        <button id="toggleDark">Toggle Dark Mode</button>
-        <button id="resetData">Delete Data</button>
-        <button id="logout">Logout</button>
-      </div>
-    </main>
-  </div>
-
+  <!-- Load keys then logic -->
   <script src="config.js"></script>
   <script src="dashboard.js"></script>
 </body>
