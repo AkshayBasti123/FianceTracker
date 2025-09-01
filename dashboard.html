@@ -1,1 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Finance Tracker - Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h2 class="logo">💰 FinanceTracker</h2>
+      <nav>
+        <ul>
+          <li class="active" data-tab="overview">Overview</li>
+          <li data-tab="transactions">Transactions</li>
+          <li data-tab="budget">Budget</li>
+          <li data-tab="reports">Reports</li>
+          <li data-tab="settings">Settings</li>
+        </ul>
+      </nav>
+    </aside>
 
+    <!-- Main Content -->
+    <main class="main">
+      <header class="topbar">
+        <h1 id="tab-title">Overview</h1>
+        <div class="user-info">
+          <span class="username">Welcome, User</span>
+          <button id="logout">Logout</button>
+        </div>
+      </header>
+
+      <!-- Overview Tab -->
+      <section id="overview" class="tab-content active">
+        <div class="cards">
+          <div class="card">Total Balance <h2>$5,200</h2></div>
+          <div class="card">Income <h2>$7,800</h2></div>
+          <div class="card">Expenses <h2>$2,600</h2></div>
+          <div class="card">Savings <h2>$1,200</h2></div>
+        </div>
+        <div class="charts">
+          <canvas id="expenseChart"></canvas>
+          <canvas id="incomeExpenseChart"></canvas>
+        </div>
+      </section>
+
+      <!-- Transactions Tab -->
+      <section id="transactions" class="tab-content">
+        <h2>Recent Transactions</h2>
+        <form id="add-transaction">
+          <input type="text" id="desc" placeholder="Description" required />
+          <input type="number" id="amount" placeholder="Amount" required />
+          <select id="type">
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+          </select>
+          <button type="submit">Add</button>
+        </form>
+        <ul id="transaction-list"></ul>
+      </section>
+
+      <!-- Budget Tab -->
+      <section id="budget" class="tab-content">
+        <h2>Budget Tracking</h2>
+        <p>Coming soon...</p>
+      </section>
+
+      <!-- Reports Tab -->
+      <section id="reports" class="tab-content">
+        <h2>Reports</h2>
+        <p>Charts and detailed analytics will go here.</p>
+      </section>
+
+      <!-- Settings Tab -->
+      <section id="settings" class="tab-content">
+        <h2>Settings</h2>
+        <p>User preferences and account settings.</p>
+      </section>
+    </main>
+  </div>
+  <script src="dashboard.js"></script>
+</body>
+</html>
