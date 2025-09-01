@@ -1,188 +1,151 @@
-let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
-let budgets = JSON.parse(localStorage.getItem("budgets")) || [];
-
-const balanceEl = document.getElementById("balance");
-const incomeEl = document.getElementById("income");
-const expensesEl = document.getElementById("expenses");
-const savingsEl = document.getElementById("savings");
-const transactionList = document.getElementById("transactionList");
-const budgetList = document.getElementById("budgetList");
-
-let lineChart, pieChart;
-
-// -------- Sidebar Navigation --------
-document.querySelectorAll(".tab-button").forEach(btn => {
+// === Sidebar Tabs ===
+document.querySelectorAll(".sidebar nav button").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
     document.getElementById(btn.dataset.tab).classList.add("active");
   });
 });
 
-// -------- Transaction Handling --------
-document.getElementById("transactionForm").addEventListener("submit", e => {
-  e.preventDefault();
-  const desc = document.getElementById("desc").value;
-  const amount = parseFloat(document.getElementById("amount").value);
-  const type = document.getElementById("type").value;
-  const category = document.getElementById("category").value;
-  const month = document.getElementById("month").value;
+// === Transactions ===
+let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+let budget = localStorage.getItem("budget") || null;
 
-  transactions.push({ desc, amount, type, category, month });
-  localStorage.setItem("transactions", JSON.stringify(transactions));
-  e.target.reset();
-  renderTransactions();
-  updateAll();
-});
+const balanceEl = document.getElementById("balance");
+const incomeEl = document.getElementById("income");
+const expensesEl = document.getElementById("expenses");
+const transactionList = document.getElementById("transactionList");
+const budgetProgress = document.getElementById("budgetProgress");
+const budgetStatus = document.getElementById("budgetStatus");
 
 function renderTransactions() {
   transactionList.innerHTML = "";
   transactions.forEach((t, index) => {
-    const row = `<tr>
-      <td>${t.desc}</td>
-      <td>${t.amount}</td>
-      <td>${t.type}</td>
-      <td>${t.category}</td>
-      <td>${t.month}</td>
-      <td><button onclick="deleteTransaction(${index})">❌</button></td>
-    </tr>`;
-    transactionList.innerHTML += row;
+    const li = document.createElement("li");
+    li.innerHTML = `
+      ${t.desc} - $${t.amount} (${t.type}, ${t.month})
+      <button onclick="deleteTransaction(${index})">❌</button>
+    `;
+    transactionList.appendChild(li);
   });
-}
-function deleteTransaction(index) {
-  transactions.splice(index, 1);
-  localStorage.setItem("transactions", JSON.stringify(transactions));
-  renderTransactions();
-  updateAll();
+  updateSummary();
 }
 
-// -------- Budget Handling --------
-document.getElementById("budgetForm").addEventListener("submit", e => {
+function deleteTransaction(index) {
+  transactions.splice(index, 1);
+  saveData();
+  renderTransactions();
+}
+
+document.getElementById("transactionForm").addEventListener("submit", e => {
   e.preventDefault();
-  const category = document.getElementById("budgetCategory").value;
-  const amount = parseFloat(document.getElementById("budgetAmount").value);
-  budgets = budgets.filter(b => b.category !== category);
-  budgets.push({ category, amount });
-  localStorage.setItem("budgets", JSON.stringify(budgets));
-  renderBudgets();
+  const desc = document.getElementById("tDesc").value;
+  const amount = parseFloat(document.getElementById("tAmount").value);
+  const type = document.getElementById("tType").value;
+  const month = document.getElementById("tMonth").value;
+
+  transactions.push({ desc, amount, type, month });
+  saveData();
+  renderTransactions();
   e.target.reset();
 });
 
-function renderBudgets() {
-  budgetList.innerHTML = "";
-  budgets.forEach(b => {
-    const spent = transactions.filter(t => t.type === "expense" && t.category === b.category)
-                              .reduce((sum, t) => sum + t.amount, 0);
-    const percent = Math.min(100, (spent / b.amount) * 100).toFixed(0);
-    budgetList.innerHTML += `
-      <div class="budget-item">
-        <strong>${b.category}:</strong> $${spent} / $${b.amount}
-        <div class="progress-bar"><div class="progress" style="width:${percent}%">${percent}%</div></div>
-      </div>`;
-  });
-}
+function updateSummary() {
+  let income = transactions.filter(t => t.type === "income").reduce((a, b) => a + b.amount, 0);
+  let expense = transactions.filter(t => t.type === "expense").reduce((a, b) => a + b.amount, 0);
+  let balance = income - expense;
 
-// -------- Overview --------
-function updateOverview() {
-  const income = transactions.filter(t => t.type === "income").reduce((a,b) => a + b.amount, 0);
-  const expenses = transactions.filter(t => t.type === "expense").reduce((a,b) => a + b.amount, 0);
-  const balance = income - expenses;
   balanceEl.textContent = `$${balance}`;
   incomeEl.textContent = `$${income}`;
-  expensesEl.textContent = `$${expenses}`;
-  savingsEl.textContent = `$${balance > 0 ? balance : 0}`;
+  expensesEl.textContent = `$${expense}`;
+
+  updateCharts();
+  updateBudget(expense);
 }
 
-// -------- Reports --------
-function updateReports() {
-  const income = transactions.filter(t => t.type === "income").reduce((a,b) => a + b.amount, 0);
-  const expenses = transactions.filter(t => t.type === "expense").reduce((a,b) => a + b.amount, 0);
-  const savingsRate = income > 0 ? ((income - expenses) / income * 100).toFixed(1) : 0;
-  const topCategory = transactions.filter(t => t.type === "expense")
-                                  .reduce((acc, t) => {
-                                    acc[t.category] = (acc[t.category] || 0) + t.amount;
-                                    return acc;
-                                  }, {});
-  const topCat = Object.keys(topCategory).length ? Object.entries(topCategory).sort((a,b)=>b[1]-a[1])[0][0] : "N/A";
-
-  document.getElementById("reportIncome").textContent = `$${income}`;
-  document.getElementById("reportExpenses").textContent = `$${expenses}`;
-  document.getElementById("reportSavings").textContent = `${savingsRate}%`;
-  document.getElementById("reportTopCat").textContent = topCat;
+function saveData() {
+  localStorage.setItem("transactions", JSON.stringify(transactions));
+  if (budget) localStorage.setItem("budget", budget);
 }
 
-// -------- Charts --------
-function updateLineChart() {
-  const monthlyData = {};
-  transactions.forEach(t => {
-    if (!monthlyData[t.month]) monthlyData[t.month] = { income: 0, expense: 0 };
-    monthlyData[t.month][t.type] += t.amount;
-  });
-
-  const labels = Object.keys(monthlyData).sort();
-  const incomeData = labels.map(m => monthlyData[m].income);
-  const expenseData = labels.map(m => monthlyData[m].expense);
-
-  if (lineChart) lineChart.destroy();
-  lineChart = new Chart(document.getElementById("lineChart"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [
-        { label: "Income", data: incomeData, borderColor: "green", fill: false },
-        { label: "Expenses", data: expenseData, borderColor: "red", fill: false }
-      ]
-    }
-  });
-}
-
-function updatePieChart() {
-  const categories = {};
-  transactions.filter(t => t.type === "expense").forEach(t => {
-    categories[t.category] = (categories[t.category] || 0) + t.amount;
-  });
-
-  if (pieChart) pieChart.destroy();
-  pieChart = new Chart(document.getElementById("pieChart"), {
-    type: "pie",
-    data: {
-      labels: Object.keys(categories),
-      datasets: [{
-        data: Object.values(categories),
-        backgroundColor: ["#e74c3c","#3498db","#2ecc71","#f1c40f","#9b59b6"]
-      }]
-    }
-  });
-}
-
-// -------- Dark Mode --------
-document.getElementById("darkModeToggle").addEventListener("click", () => {
-  document.body.classList.toggle("dark");
+// === Budget ===
+document.getElementById("budgetForm").addEventListener("submit", e => {
+  e.preventDefault();
+  budget = parseFloat(document.getElementById("budgetAmount").value);
+  saveData();
+  updateBudget();
 });
 
-// -------- Reset & Logout --------
-document.getElementById("resetBtn").addEventListener("click", () => {
-  if (confirm("Are you sure you want to reset all data?")) {
-    localStorage.removeItem("transactions");
-    localStorage.removeItem("budgets");
-    transactions = [];
-    budgets = [];
-    renderTransactions();
-    renderBudgets();
-    updateAll();
+function updateBudget(expense = null) {
+  if (!budget) {
+    budgetStatus.textContent = "No budget set";
+    budgetProgress.style.width = "0%";
+    return;
+  }
+  let spent = expense !== null ? expense : transactions.filter(t => t.type === "expense").reduce((a, b) => a + b.amount, 0);
+  let percent = Math.min((spent / budget) * 100, 100);
+  budgetProgress.style.width = percent + "%";
+  budgetStatus.textContent = `Spent $${spent} of $${budget}`;
+}
+
+// === Reports Chart ===
+const reportCtx = document.getElementById("reportChart").getContext("2d");
+let reportChart = new Chart(reportCtx, {
+  type: "pie",
+  data: {
+    labels: ["Income", "Expenses"],
+    datasets: [{ data: [0, 0], backgroundColor: ["#4bc0c0", "#ff6384"] }]
   }
 });
-document.getElementById("logoutBtn").addEventListener("click", () => {
-  localStorage.removeItem("currentUser");
+
+// === Line Chart ===
+const lineCtx = document.getElementById("lineChart").getContext("2d");
+let lineChart = new Chart(lineCtx, {
+  type: "line",
+  data: { labels: [], datasets: [{ label: "Balance", data: [], borderColor: "#36a2eb" }] }
+});
+
+function updateCharts() {
+  let income = transactions.filter(t => t.type === "income").reduce((a, b) => a + b.amount, 0);
+  let expense = transactions.filter(t => t.type === "expense").reduce((a, b) => a + b.amount, 0);
+
+  reportChart.data.datasets[0].data = [income, expense];
+  reportChart.update();
+
+  lineChart.data.labels = transactions.map(t => t.month);
+  lineChart.data.datasets[0].data = transactions.map((t, i) => {
+    let incomeSoFar = transactions.slice(0, i + 1).filter(t => t.type === "income").reduce((a, b) => a + b.amount, 0);
+    let expenseSoFar = transactions.slice(0, i + 1).filter(t => t.type === "expense").reduce((a, b) => a + b.amount, 0);
+    return incomeSoFar - expenseSoFar;
+  });
+  lineChart.update();
+}
+
+// === Settings ===
+document.getElementById("logout").addEventListener("click", () => {
   window.location.href = "index.html";
 });
 
-// -------- Init --------
-function updateAll() {
-  renderBudgets();
-  updateOverview();
-  updateReports();
-  updateLineChart();
-  updatePieChart();
+document.getElementById("resetData").addEventListener("click", () => {
+  if (confirm("Are you sure you want to delete all data?")) {
+    localStorage.removeItem("transactions");
+    localStorage.removeItem("budget");
+    transactions = [];
+    budget = null;
+    renderTransactions();
+  }
+});
+
+// Dark Mode
+document.getElementById("toggleDark").addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  localStorage.setItem("darkMode", document.body.classList.contains("dark"));
+});
+
+// Load Dark Mode preference
+if (localStorage.getItem("darkMode") === "true") {
+  document.body.classList.add("dark");
 }
+
+// === Init ===
 renderTransactions();
-updateAll();
+updateBudget();
