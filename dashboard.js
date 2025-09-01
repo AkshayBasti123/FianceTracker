@@ -8,7 +8,7 @@ const savingsEl = document.getElementById("savings");
 const transactionList = document.getElementById("transactionList");
 const budgetList = document.getElementById("budgetList");
 
-let lineChart;
+let lineChart, pieChart;
 
 // -------- Sidebar Navigation --------
 document.querySelectorAll(".tab-button").forEach(btn => {
@@ -31,23 +31,28 @@ document.getElementById("transactionForm").addEventListener("submit", e => {
   localStorage.setItem("transactions", JSON.stringify(transactions));
   e.target.reset();
   renderTransactions();
-  updateOverview();
-  updateLineChart();
-  updateReports();
+  updateAll();
 });
 
 function renderTransactions() {
   transactionList.innerHTML = "";
-  transactions.forEach(t => {
+  transactions.forEach((t, index) => {
     const row = `<tr>
       <td>${t.desc}</td>
       <td>${t.amount}</td>
       <td>${t.type}</td>
       <td>${t.category}</td>
       <td>${t.month}</td>
+      <td><button onclick="deleteTransaction(${index})">❌</button></td>
     </tr>`;
     transactionList.innerHTML += row;
   });
+}
+function deleteTransaction(index) {
+  transactions.splice(index, 1);
+  localStorage.setItem("transactions", JSON.stringify(transactions));
+  renderTransactions();
+  updateAll();
 }
 
 // -------- Budget Handling --------
@@ -105,7 +110,7 @@ function updateReports() {
   document.getElementById("reportTopCat").textContent = topCat;
 }
 
-// -------- Chart --------
+// -------- Charts --------
 function updateLineChart() {
   const monthlyData = {};
   transactions.forEach(t => {
@@ -130,6 +135,30 @@ function updateLineChart() {
   });
 }
 
+function updatePieChart() {
+  const categories = {};
+  transactions.filter(t => t.type === "expense").forEach(t => {
+    categories[t.category] = (categories[t.category] || 0) + t.amount;
+  });
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById("pieChart"), {
+    type: "pie",
+    data: {
+      labels: Object.keys(categories),
+      datasets: [{
+        data: Object.values(categories),
+        backgroundColor: ["#e74c3c","#3498db","#2ecc71","#f1c40f","#9b59b6"]
+      }]
+    }
+  });
+}
+
+// -------- Dark Mode --------
+document.getElementById("darkModeToggle").addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+});
+
 // -------- Reset & Logout --------
 document.getElementById("resetBtn").addEventListener("click", () => {
   if (confirm("Are you sure you want to reset all data?")) {
@@ -139,20 +168,21 @@ document.getElementById("resetBtn").addEventListener("click", () => {
     budgets = [];
     renderTransactions();
     renderBudgets();
-    updateOverview();
-    updateLineChart();
-    updateReports();
+    updateAll();
   }
 });
-
 document.getElementById("logoutBtn").addEventListener("click", () => {
   localStorage.removeItem("currentUser");
   window.location.href = "index.html";
 });
 
 // -------- Init --------
+function updateAll() {
+  renderBudgets();
+  updateOverview();
+  updateReports();
+  updateLineChart();
+  updatePieChart();
+}
 renderTransactions();
-renderBudgets();
-updateOverview();
-updateLineChart();
-updateReports();
+updateAll();
