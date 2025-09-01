@@ -1,86 +1,296 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Finance Tracker - Dashboard</title>
+  <title>FinanceTracker — Dashboard</title>
+
+  <!-- Icons (Lucide) -->
+  <script defer src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Styles -->
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="dashboard">
     <!-- Sidebar -->
-    <aside class="sidebar">
-      <h2 class="logo">💰 FinanceTracker</h2>
-      <nav>
-        <ul>
-          <li class="active" data-tab="overview">Overview</li>
-          <li data-tab="transactions">Transactions</li>
-          <li data-tab="budget">Budget</li>
-          <li data-tab="reports">Reports</li>
-          <li data-tab="settings">Settings</li>
-        </ul>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <i data-lucide="menu"></i>
+        </button>
+        <h2 class="logo"><i data-lucide="wallet"></i> FinanceTracker</h2>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-tab="overview"><i data-lucide="layout-dashboard"></i><span>Overview</span></button>
+        <button class="nav-item" data-tab="transactions"><i data-lucide="list"></i><span>Transactions</span></button>
+        <button class="nav-item" data-tab="budget"><i data-lucide="target"></i><span>Budget</span></button>
+        <button class="nav-item" data-tab="reports"><i data-lucide="bar-chart-3"></i><span>Reports</span></button>
+        <button class="nav-item" data-tab="markets"><i data-lucide="trending-up"></i><span>Markets</span></button>
+        <button class="nav-item" data-tab="assistant"><i data-lucide="bot"></i><span>AI Assistant</span></button>
+        <button class="nav-item" data-tab="settings"><i data-lucide="settings"></i><span>Settings</span></button>
       </nav>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main -->
     <main class="main">
       <header class="topbar">
         <h1 id="tab-title">Overview</h1>
-        <div class="user-info">
-          <span class="username">Welcome, User</span>
-          <button id="logout">Logout</button>
+        <div class="topbar-right">
+          <div class="search-wrap">
+            <i data-lucide="search"></i>
+            <input id="globalSearch" type="search" placeholder="Search transactions…" />
+          </div>
+          <div class="user-info">
+            <span id="welcomeUser">Welcome!</span>
+            <button id="logout" class="btn btn-ghost"><i data-lucide="log-out"></i><span>Logout</span></button>
+          </div>
         </div>
       </header>
 
-      <!-- Overview Tab -->
+      <!-- Overview -->
       <section id="overview" class="tab-content active">
         <div class="cards">
-          <div class="card">Total Balance <h2>$5,200</h2></div>
-          <div class="card">Income <h2>$7,800</h2></div>
-          <div class="card">Expenses <h2>$2,600</h2></div>
-          <div class="card">Savings <h2>$1,200</h2></div>
+          <div class="card kpi">
+            <div class="kpi-head"><i data-lucide="wallet"></i> Total Balance</div>
+            <div class="kpi-value" id="kpi-balance">—</div>
+            <div class="kpi-sub" id="kpi-balance-sub">Income − Expenses</div>
+          </div>
+          <div class="card kpi">
+            <div class="kpi-head"><i data-lucide="trending-up"></i> Income (This Month)</div>
+            <div class="kpi-value" id="kpi-income">—</div>
+            <div class="kpi-sub" id="kpi-income-sub">vs last month: <span id="kpi-income-delta">—</span></div>
+          </div>
+          <div class="card kpi">
+            <div class="kpi-head"><i data-lucide="trending-down"></i> Expenses (This Month)</div>
+            <div class="kpi-value" id="kpi-expenses">—</div>
+            <div class="kpi-sub" id="kpi-expenses-sub">vs last month: <span id="kpi-expenses-delta">—</span></div>
+          </div>
+          <div class="card kpi">
+            <div class="kpi-head"><i data-lucide="piggy-bank"></i> Savings Rate</div>
+            <div class="kpi-value" id="kpi-savings-rate">—</div>
+            <div class="kpi-sub">of monthly income</div>
+          </div>
         </div>
-        <div class="charts">
-          <canvas id="expenseChart"></canvas>
-          <canvas id="incomeExpenseChart"></canvas>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><i data-lucide="pie-chart"></i> Expenses by Category (This Month)</div>
+            <canvas id="expenseByCategoryChart" height="220"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-head"><i data-lucide="chart-line"></i> Income vs Expenses (Last 6 Months)</div>
+            <canvas id="incomeVsExpensesChart" height="220"></canvas>
+          </div>
         </div>
       </section>
 
-      <!-- Transactions Tab -->
+      <!-- Transactions -->
       <section id="transactions" class="tab-content">
-        <h2>Recent Transactions</h2>
-        <form id="add-transaction">
-          <input type="text" id="desc" placeholder="Description" required />
-          <input type="number" id="amount" placeholder="Amount" required />
-          <select id="type">
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-          </select>
-          <button type="submit">Add</button>
-        </form>
-        <ul id="transaction-list"></ul>
+        <div class="card">
+          <div class="card-head"><i data-lucide="plus-circle"></i> Add Transaction</div>
+          <form id="transactionForm" class="form-grid">
+            <input type="date" id="txDate" required />
+            <input type="text" id="txDesc" placeholder="Description (e.g., Starbucks)" required />
+            <input type="number" step="0.01" id="txAmount" placeholder="Amount" required />
+            <select id="txType" required>
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+            <select id="txCategory" required>
+              <option value="Rent">Rent</option>
+              <option value="Food">Food</option>
+              <option value="Transport">Transport</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Health">Health</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Other">Other</option>
+            </select>
+            <button class="btn" type="submit"><i data-lucide="save"></i> Save</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-head space-between">
+            <span><i data-lucide="list"></i> Recent Transactions</span>
+            <div class="filters">
+              <input type="month" id="txMonthFilter" />
+              <select id="txCategoryFilter">
+                <option value="">All Categories</option>
+                <option>Rent</option><option>Food</option><option>Transport</option>
+                <option>Utilities</option><option>Entertainment</option>
+                <option>Health</option><option>Shopping</option><option>Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table" id="transactionsTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Type</th>
+                  <th class="right">Amount</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="transactionsTbody"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <div id="txCount">0 items</div>
+            <div class="pagination">
+              <button class="btn btn-ghost" id="prevPage"><i data-lucide="chevron-left"></i></button>
+              <span id="pageInfo">1 / 1</span>
+              <button class="btn btn-ghost" id="nextPage"><i data-lucide="chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <!-- Budget Tab -->
+      <!-- Budget -->
       <section id="budget" class="tab-content">
-        <h2>Budget Tracking</h2>
-        <p>Coming soon...</p>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><i data-lucide="target"></i> Monthly Budget</div>
+            <form id="budgetForm" class="form-inline">
+              <input type="month" id="budgetMonth" required />
+              <input type="number" step="0.01" id="budgetAmount" placeholder="Budget amount" required />
+              <button class="btn" type="submit"><i data-lucide="save"></i> Save Budget</button>
+            </form>
+            <div class="budget-progress">
+              <div class="progress-head">
+                <span id="budgetLabel">—</span>
+                <span id="budgetMeta" class="muted">—</span>
+              </div>
+              <div class="progress">
+                <div id="budgetBar" class="progress-bar" style="width:0%"></div>
+              </div>
+              <div class="budget-stats">
+                <div><span class="muted">Spent</span><div id="budgetSpent">—</div></div>
+                <div><span class="muted">Remaining</span><div id="budgetRemaining">—</div></div>
+                <div><span class="muted">Utilization</span><div id="budgetUtilization">—</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><i data-lucide="list-checks"></i> Budgets by Month</div>
+            <div class="table-wrap">
+              <table class="table" id="budgetsTable">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th class="right">Budget</th>
+                    <th class="right">Spent</th>
+                    <th class="right">Remaining</th>
+                  </tr>
+                </thead>
+                <tbody id="budgetsTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <!-- Reports Tab -->
+      <!-- Reports -->
       <section id="reports" class="tab-content">
-        <h2>Reports</h2>
-        <p>Charts and detailed analytics will go here.</p>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><i data-lucide="sparkle"></i> Auto Summary (No AI yet)</div>
+            <ul class="summary" id="reportsSummary"></ul>
+          </div>
+          <div class="card">
+            <div class="card-head"><i data-lucide="bar-chart"></i> Top Categories (YTD)</div>
+            <canvas id="topCategoriesChart" height="220"></canvas>
+          </div>
+        </div>
       </section>
 
-      <!-- Settings Tab -->
+      <!-- Markets (placeholder until APIs) -->
+      <section id="markets" class="tab-content">
+        <div class="card">
+          <div class="card-head"><i data-lucide="info"></i> Markets</div>
+          <p class="muted">
+            Live stocks/crypto will appear here. For now, this is a placeholder with demo rows.
+            We’ll hook it up to free APIs next (Yahoo/Coingecko/exchangerate.host).
+          </p>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Symbol</th><th>Name</th><th class="right">Price</th><th class="right">24h</th></tr></thead>
+              <tbody>
+                <tr><td>^GSPC</td><td>S&P 500</td><td class="right">4,500.00</td><td class="right">+0.7%</td></tr>
+                <tr><td>BTC</td><td>Bitcoin</td><td class="right">65,000.00</td><td class="right">-1.2%</td></tr>
+                <tr><td>AAPL</td><td>Apple Inc.</td><td class="right">190.25</td><td class="right">+0.3%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- AI Assistant (local-only logic for now) -->
+      <section id="assistant" class="tab-content">
+        <div class="card">
+          <div class="card-head"><i data-lucide="bot"></i> AI Assistant (Preview)</div>
+          <div class="assistant">
+            <div class="assistant-log" id="assistantLog"></div>
+            <form id="assistantForm" class="assistant-input">
+              <input id="assistantPrompt" placeholder="Ask about your spending (e.g., “How much did I spend on Food last month?”)" />
+              <button class="btn" type="submit"><i data-lucide="send"></i> Ask</button>
+            </form>
+            <p class="muted small">
+              This uses deterministic local rules (no AI) for now. Next step: wire to a free model for natural language.
+            </p>
+          </div>
+        </div>
+      </section>
       <section id="settings" class="tab-content">
-        <h2>Settings</h2>
-        <p>User preferences and account settings.</p>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><i data-lucide="user"></i> Profile</div>
+            <div class="form-grid">
+              <input id="settingsName" placeholder="Display name (optional)" />
+              <select id="settingsCurrency">
+                <option value="USD">$ — USD</option>
+                <option value="CAD">C$ — CAD</option>
+                <option value="EUR">€ — EUR</option>
+                <option value="GBP">£ — GBP</option>
+                <option value="INR">₹ — INR</option>
+              </select>
+              <button class="btn" id="saveSettings"><i data-lucide="save"></i> Save Settings</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><i data-lucide="moon-star"></i> Appearance & Data</div>
+            <div class="form-inline">
+              <label class="switch">
+                <input type="checkbox" id="darkModeToggle" />
+                <span class="slider"></span>
+              </label>
+              <span>Dark mode</span>
+            </div>
+            <div class="actions">
+              <button class="btn btn-outline" id="exportData"><i data-lucide="download"></i> Export Data</button>
+              <button class="btn btn-danger" id="resetData"><i data-lucide="trash-2"></i> Reset All</button>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   </div>
+
   <script src="dashboard.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
 </body>
 </html>
