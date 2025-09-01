@@ -1,172 +1,158 @@
-document.addEventListener("DOMContentLoaded", () => {
-  // Elements
-  const tabs = document.querySelectorAll(".tab-btn");
-  const contents = document.querySelectorAll(".tab-content");
-  const tabTitle = document.getElementById("tab-title");
+let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+let budgets = JSON.parse(localStorage.getItem("budgets")) || [];
 
-  const balanceEl = document.getElementById("balance");
-  const incomeEl = document.getElementById("income");
-  const expensesEl = document.getElementById("expenses");
-  const savingsEl = document.getElementById("savings");
-  const form = document.getElementById("add-transaction");
-  const list = document.getElementById("transaction-list");
+const balanceEl = document.getElementById("balance");
+const incomeEl = document.getElementById("income");
+const expensesEl = document.getElementById("expenses");
+const savingsEl = document.getElementById("savings");
+const transactionList = document.getElementById("transactionList");
+const budgetList = document.getElementById("budgetList");
 
-  const budgetForm = document.getElementById("set-budget-form");
-  const budgetInput = document.getElementById("budget-input");
-  const budgetAmountEl = document.getElementById("budget-amount");
-  const spentAmountEl = document.getElementById("spent-amount");
-  const budgetProgress = document.getElementById("budget-progress");
+let lineChart;
 
-  const reportSummary = document.getElementById("report-summary");
-  const darkToggle = document.getElementById("dark-mode-toggle");
-  const resetBtn = document.getElementById("reset-data");
-
-  // State
-  let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
-  let budget = parseFloat(localStorage.getItem("budget")) || 0;
-
-  // Navigation
-  tabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      tabs.forEach(t => t.classList.remove("active"));
-      tab.classList.add("active");
-
-      contents.forEach(c => c.classList.remove("active"));
-      document.getElementById(tab.dataset.tab).classList.add("active");
-
-      tabTitle.textContent = tab.textContent;
-    });
+// -------- Sidebar Navigation --------
+document.querySelectorAll(".tab-button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+    document.getElementById(btn.dataset.tab).classList.add("active");
   });
-
-  // Add Transaction
-  form.addEventListener("submit", e => {
-    e.preventDefault();
-    const desc = document.getElementById("desc").value;
-    const amount = parseFloat(document.getElementById("amount").value);
-    const type = document.getElementById("type").value;
-
-    const transaction = { id: Date.now(), desc, amount, type };
-    transactions.push(transaction);
-    localStorage.setItem("transactions", JSON.stringify(transactions));
-
-    form.reset();
-    render();
-  });
-
-  // Budget Form
-  budgetForm.addEventListener("submit", e => {
-    e.preventDefault();
-    budget = parseFloat(budgetInput.value);
-    budgetInput.value = "";
-    render();
-  });
-
-  // Dark Mode
-  darkToggle.addEventListener("change", () => {
-    document.body.classList.toggle("dark", darkToggle.checked);
-  });
-
-  // Reset Data with Confirmation
-  resetBtn.addEventListener("click", () => {
-    if (confirm("Are you sure you want to reset all data? This cannot be undone.")) {
-      localStorage.clear();
-      transactions = [];
-      budget = 0;
-      render();
-    }
-  });
-
-  // Charts
-  const expenseCtx = document.getElementById("expenseChart").getContext("2d");
-  const incomeExpenseCtx = document.getElementById("incomeExpenseChart").getContext("2d");
-
-  let expenseChart = new Chart(expenseCtx, {
-    type: "pie",
-    data: {
-      labels: [],
-      datasets: [{ data: [], backgroundColor: ["#f87171","#facc15","#34d399","#60a5fa","#a78bfa","#fb923c"] }]
-    }
-  });
-
-  let incomeExpenseChart = new Chart(incomeExpenseCtx, {
-    type: "bar",
-    data: {
-      labels: [],
-      datasets: [
-        { label: "Income", data: [], backgroundColor: "#34d399" },
-        { label: "Expenses", data: [], backgroundColor: "#f87171" }
-      ]
-    },
-    options: { responsive: true, plugins: { legend: { position: "bottom" } } }
-  });
-
-  // Render Everything
-  function render() {
-    // Cards
-    const income = transactions.filter(t => t.type === "income").reduce((a, b) => a + b.amount, 0);
-    const expenses = transactions.filter(t => t.type === "expense").reduce((a, b) => a + b.amount, 0);
-    const balance = income - expenses;
-    const savings = balance > 0 ? balance * 0.2 : 0;
-
-    balanceEl.textContent = `$${balance}`;
-    incomeEl.textContent = `$${income}`;
-    expensesEl.textContent = `$${expenses}`;
-    savingsEl.textContent = `$${savings}`;
-
-    // Transaction List
-    list.innerHTML = "";
-    transactions.forEach(t => {
-      const li = document.createElement("li");
-      li.textContent = `${t.desc} - $${t.amount} (${t.type})`;
-      list.appendChild(li);
-    });
-
-    // Budget
-    budgetAmountEl.textContent = budget;
-    spentAmountEl.textContent = expenses;
-    if (budget > 0) {
-      budgetProgress.value = Math.min((expenses / budget) * 100, 100);
-    }
-
-    // Report Summary
-    if (transactions.length > 0) {
-      const categories = {};
-      transactions.forEach(t => {
-        const key = t.desc.toLowerCase().includes("food") ? "Food" : t.type;
-        categories[key] = (categories[key] || 0) + t.amount;
-      });
-      reportSummary.textContent = `You spent $${expenses} total. Breakdown: ${Object.entries(categories).map(([k,v]) => `${k}: $${v}`).join(", ")}`;
-    }
-
-    // Update Charts
-    const categories = {};
-    transactions.forEach(t => {
-      if (t.type === "expense") {
-        categories[t.desc] = (categories[t.desc] || 0) + t.amount;
-      }
-    });
-
-    expenseChart.data.labels = Object.keys(categories);
-    expenseChart.data.datasets[0].data = Object.values(categories);
-    expenseChart.update();
-
-    const months = {};
-    transactions.forEach(t => {
-      const d = new Date(t.id);
-      const m = d.toLocaleString("default", { month: "short" });
-      if (!months[m]) months[m] = { income: 0, expense: 0 };
-      months[m][t.type] += t.amount;
-    });
-
-    incomeExpenseChart.data.labels = Object.keys(months);
-    incomeExpenseChart.data.datasets[0].data = Object.values(months).map(m => m.income);
-    incomeExpenseChart.data.datasets[1].data = Object.values(months).map(m => m.expense);
-    incomeExpenseChart.update();
-
-    // Save budget
-    localStorage.setItem("budget", budget);
-  }
-
-  // Initial Render
-  render();
 });
+
+// -------- Transaction Handling --------
+document.getElementById("transactionForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const desc = document.getElementById("desc").value;
+  const amount = parseFloat(document.getElementById("amount").value);
+  const type = document.getElementById("type").value;
+  const category = document.getElementById("category").value;
+  const month = document.getElementById("month").value;
+
+  transactions.push({ desc, amount, type, category, month });
+  localStorage.setItem("transactions", JSON.stringify(transactions));
+  e.target.reset();
+  renderTransactions();
+  updateOverview();
+  updateLineChart();
+  updateReports();
+});
+
+function renderTransactions() {
+  transactionList.innerHTML = "";
+  transactions.forEach(t => {
+    const row = `<tr>
+      <td>${t.desc}</td>
+      <td>${t.amount}</td>
+      <td>${t.type}</td>
+      <td>${t.category}</td>
+      <td>${t.month}</td>
+    </tr>`;
+    transactionList.innerHTML += row;
+  });
+}
+
+// -------- Budget Handling --------
+document.getElementById("budgetForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const category = document.getElementById("budgetCategory").value;
+  const amount = parseFloat(document.getElementById("budgetAmount").value);
+  budgets = budgets.filter(b => b.category !== category);
+  budgets.push({ category, amount });
+  localStorage.setItem("budgets", JSON.stringify(budgets));
+  renderBudgets();
+  e.target.reset();
+});
+
+function renderBudgets() {
+  budgetList.innerHTML = "";
+  budgets.forEach(b => {
+    const spent = transactions.filter(t => t.type === "expense" && t.category === b.category)
+                              .reduce((sum, t) => sum + t.amount, 0);
+    const percent = Math.min(100, (spent / b.amount) * 100).toFixed(0);
+    budgetList.innerHTML += `
+      <div class="budget-item">
+        <strong>${b.category}:</strong> $${spent} / $${b.amount}
+        <div class="progress-bar"><div class="progress" style="width:${percent}%">${percent}%</div></div>
+      </div>`;
+  });
+}
+
+// -------- Overview --------
+function updateOverview() {
+  const income = transactions.filter(t => t.type === "income").reduce((a,b) => a + b.amount, 0);
+  const expenses = transactions.filter(t => t.type === "expense").reduce((a,b) => a + b.amount, 0);
+  const balance = income - expenses;
+  balanceEl.textContent = `$${balance}`;
+  incomeEl.textContent = `$${income}`;
+  expensesEl.textContent = `$${expenses}`;
+  savingsEl.textContent = `$${balance > 0 ? balance : 0}`;
+}
+
+// -------- Reports --------
+function updateReports() {
+  const income = transactions.filter(t => t.type === "income").reduce((a,b) => a + b.amount, 0);
+  const expenses = transactions.filter(t => t.type === "expense").reduce((a,b) => a + b.amount, 0);
+  const savingsRate = income > 0 ? ((income - expenses) / income * 100).toFixed(1) : 0;
+  const topCategory = transactions.filter(t => t.type === "expense")
+                                  .reduce((acc, t) => {
+                                    acc[t.category] = (acc[t.category] || 0) + t.amount;
+                                    return acc;
+                                  }, {});
+  const topCat = Object.keys(topCategory).length ? Object.entries(topCategory).sort((a,b)=>b[1]-a[1])[0][0] : "N/A";
+
+  document.getElementById("reportIncome").textContent = `$${income}`;
+  document.getElementById("reportExpenses").textContent = `$${expenses}`;
+  document.getElementById("reportSavings").textContent = `${savingsRate}%`;
+  document.getElementById("reportTopCat").textContent = topCat;
+}
+
+// -------- Chart --------
+function updateLineChart() {
+  const monthlyData = {};
+  transactions.forEach(t => {
+    if (!monthlyData[t.month]) monthlyData[t.month] = { income: 0, expense: 0 };
+    monthlyData[t.month][t.type] += t.amount;
+  });
+
+  const labels = Object.keys(monthlyData).sort();
+  const incomeData = labels.map(m => monthlyData[m].income);
+  const expenseData = labels.map(m => monthlyData[m].expense);
+
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById("lineChart"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Income", data: incomeData, borderColor: "green", fill: false },
+        { label: "Expenses", data: expenseData, borderColor: "red", fill: false }
+      ]
+    }
+  });
+}
+
+// -------- Reset & Logout --------
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (confirm("Are you sure you want to reset all data?")) {
+    localStorage.removeItem("transactions");
+    localStorage.removeItem("budgets");
+    transactions = [];
+    budgets = [];
+    renderTransactions();
+    renderBudgets();
+    updateOverview();
+    updateLineChart();
+    updateReports();
+  }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  localStorage.removeItem("currentUser");
+  window.location.href = "index.html";
+});
+
+// -------- Init --------
+renderTransactions();
+renderBudgets();
+updateOverview();
+updateLineChart();
+updateReports();
