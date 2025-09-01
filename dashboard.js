@@ -1,353 +1,171 @@
-/* ============================================================================
-   FinanceTracker - Dashboard Logic (verbose edition)
-   ---------------------------------------------------------------------------
-   This file powers all tabs:
-   - Overview (line chart + quick stats)
-   - Transactions (table + delete)
-   - Budget (category limits with progress bars)
-   - Reports (pie chart of expenses by category)
-   - News (GNews.io)
-   - Markets (AAPL, currency converter, crypto, commodities)
-   - AI Assistant (HuggingFace DialoGPT)
-   - Settings (dark mode, reset, logout)
-   ---------------------------------------------------------------------------
-   IMPORTANT: Ensure you include config.js BEFORE this file:
+/* ======= State ======= */
+let transactions = JSON.parse(localStorage.getItem("ft.transactions") || "[]");
+let budgets      = JSON.parse(localStorage.getItem("ft.budgets") || "[]");
+let ui           = JSON.parse(localStorage.getItem("ft.ui") || "{}");
+ui.darkMode = !!ui.darkMode;
 
-      <script src="config.js"></script>
-      <script src="dashboard.js"></script>
-
-   The CONFIG object must define:
-     CONFIG = {
-       ALPHA_VANTAGE_KEY: "...",
-       GNEWS_KEY: "...",
-       HF_API_KEY: "..."
-     }
-   ============================================================================ */
-
-/* ------------------------------------------
-   Module-level state (persisted in localStorage)
-   ------------------------------------------ */
-let transactions = [];   // [{ id, date, desc, amount, type }]
-let budgets = [];        // [{ id, category, limit }]
-let ui = {               // UI prefs (e.g., dark mode)
-  darkMode: false
-};
-
-/* ------------------------------------------
-   Utility: LocalStorage keys
-   ------------------------------------------ */
-const LS_KEYS = {
-  TRANSACTIONS: "ft.transactions",
-  BUDGETS: "ft.budgets",
-  UI: "ft.ui"
-};
-
-/* ------------------------------------------
-   Utility: guard for DOM queries
-   ------------------------------------------ */
-function $(selector) {
-  return document.querySelector(selector);
+function saveState(){
+  localStorage.setItem("ft.transactions", JSON.stringify(transactions));
+  localStorage.setItem("ft.budgets", JSON.stringify(budgets));
+  localStorage.setItem("ft.ui", JSON.stringify(ui));
 }
 
-function $all(selector) {
-  return Array.from(document.querySelectorAll(selector));
-}
+/* ======= Helpers ======= */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const uid = () => Math.random().toString(36).slice(2,10);
 
-/* ------------------------------------------
-   Utility: load & save localStorage
-   ------------------------------------------ */
-function saveState() {
-  localStorage.setItem(LS_KEYS.TRANSACTIONS, JSON.stringify(transactions));
-  localStorage.setItem(LS_KEYS.BUDGETS, JSON.stringify(budgets));
-  localStorage.setItem(LS_KEYS.UI, JSON.stringify(ui));
-}
-
-function loadState() {
-  try {
-    const t = JSON.parse(localStorage.getItem(LS_KEYS.TRANSACTIONS) || "[]");
-    const b = JSON.parse(localStorage.getItem(LS_KEYS.BUDGETS) || "[]");
-    const u = JSON.parse(localStorage.getItem(LS_KEYS.UI) || "{}");
-    if (Array.isArray(t)) transactions = t;
-    if (Array.isArray(b)) budgets = b;
-    if (u && typeof u === "object") ui = { darkMode: !!u.darkMode };
-  } catch (e) {
-    console.warn("State load error:", e);
-  }
-}
-
-/* ------------------------------------------
-   Utility: simple ID generator (for rows)
-   ------------------------------------------ */
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
-/* ------------------------------------------
-   Charts (Chart.js instances)
-   ------------------------------------------ */
-let overviewChart = null;
-let reportChart = null;
-
-/* ------------------------------------------
-   Canvas Sizing Control
-   Prevent “growing chart” behavior by:
-   - fixing parent container heights via CSS
-   - AND locking canvas height once on init
-   ------------------------------------------ */
-function lockCanvasHeight(canvasId, fixedPx) {
-  const cv = document.getElementById(canvasId);
-  if (!cv) return;
-  // Only set once; avoid recalculations that cause growth
-  if (!cv.dataset.lockedHeight) {
-    cv.height = fixedPx;         // explicitly set height in pixels
-    cv.style.maxHeight = fixedPx + "px";
-    cv.dataset.lockedHeight = "1";
-  }
-}
-
-/* ============================================================================
-   TAB HANDLING
-   ============================================================================ */
-function initTabs() {
-  const buttons = $all(".sidebar button");
-  buttons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const tab = btn.dataset.tab;
-      // Hide all
-      $all(".tab-content").forEach(el => el.classList.add("hidden"));
-      // Show target
-      const target = document.getElementById(tab);
-      if (target) target.classList.remove("hidden");
-      // If we switch to charts, force their resize/update
-      if (tab === "overview") {
-        // No-op: line chart updates when transactions change
-      } else if (tab === "reports") {
-        // No-op: pie chart updates when transactions change
-      }
+/* ======= Tabs ======= */
+function initTabs(){
+  $$(".sidebar .nav button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      $$(".tab-content").forEach(el=>el.classList.add("hidden"));
+      const id = btn.dataset.tab;
+      const el = document.getElementById(id);
+      if (el) el.classList.remove("hidden");
     });
   });
 }
 
-/* ============================================================================
-   TRANSACTIONS
-   ============================================================================ */
-function initTransactions() {
-  const form = document.getElementById("transactionForm");
-  const tableBody = document.querySelector("#transactionTable tbody");
+/* ======= Transactions ======= */
+function initTransactions(){
+  const form = $("#transactionForm");
+  if(!form) return;
 
-  if (!form || !tableBody) return;
-
-  // Form submission handler
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", (e)=>{
     e.preventDefault();
+    const desc = $("#tDesc").value.trim();
+    const amount = parseFloat($("#tAmount").value);
+    const type = $("#tType").value;
+    if(!desc || !Number.isFinite(amount)) return;
 
-    // Read fields
-    const descEl = document.getElementById("tDesc");
-    const amountEl = document.getElementById("tAmount");
-    const typeEl = document.getElementById("tType");
-
-    const desc = (descEl?.value || "").trim();
-    const amount = parseFloat(amountEl?.value || "0");
-    const type = typeEl?.value === "income" ? "income" : "expense";
-
-    if (!desc || !Number.isFinite(amount)) return;
-
-    // Create transaction
-    const entry = {
+    transactions.push({
       id: uid(),
-      date: new Date().toLocaleDateString(), // keep it simple; could store ISO
-      desc,
-      amount,
-      type
-    };
-
-    // Persist
-    transactions.push(entry);
+      date: new Date().toLocaleDateString(),
+      desc, amount, type
+    });
     saveState();
-
-    // Re-render
-    renderTransactionsTable();
+    renderTransactions();
     renderOverviewChart();
     renderReportChart();
-    updateOverviewStats();
-
-    // Reset form
+    updateStats();
+    renderBudgets();
     form.reset();
   });
 
-  // Initial render from persisted state
-  renderTransactionsTable();
+  renderTransactions();
 }
 
-/* Render the transactions table in a more "professional" style */
-function renderTransactionsTable() {
-  const tbody = document.querySelector("#transactionTable tbody");
-  if (!tbody) return;
-
-  // Clear
-  tbody.innerHTML = "";
-
-  if (!transactions.length) {
-    const empty = document.createElement("tr");
-    empty.innerHTML = `<td colspan="5" style="text-align:center;opacity:0.7;">No transactions yet.</td>`;
-    tbody.appendChild(empty);
+function renderTransactions(){
+  const tb = $("#transactionTable tbody");
+  tb.innerHTML = "";
+  if(!transactions.length){
+    tb.innerHTML = `<tr><td colspan="5" style="text-align:center;opacity:.7;">No transactions yet.</td></tr>`;
     return;
   }
-
-  // Render rows
-  transactions.forEach((t) => {
+  transactions.forEach((t)=>{
     const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${t.date}</td>
+      <td>${t.desc}</td>
+      <td>$${Number(t.amount).toFixed(2)}</td>
+      <td style="font-weight:600;color:${t.type==='income'?'#16a34a':'#dc2626'}">${t.type}</td>
+      <td><button class="btn-danger" data-del="${t.id}">Delete</button></td>
+    `;
+    tb.appendChild(tr);
+  });
 
-    const tdDate = document.createElement("td");
-    tdDate.textContent = t.date;
-
-    const tdDesc = document.createElement("td");
-    tdDesc.textContent = t.desc;
-
-    const tdAmount = document.createElement("td");
-    tdAmount.textContent = `$${Number(t.amount).toFixed(2)}`;
-
-    const tdType = document.createElement("td");
-    tdType.textContent = t.type === "income" ? "Income" : "Expense";
-    tdType.style.fontWeight = "600";
-    tdType.style.color = t.type === "income" ? "var(--green-600, #16a34a)" : "var(--red-600, #dc2626)";
-
-    const tdAction = document.createElement("td");
-    const delBtn = document.createElement("button");
-    delBtn.textContent = "Delete";
-    delBtn.className = "btn-danger";
-    delBtn.addEventListener("click", () => {
-      // Remove and update
-      transactions = transactions.filter(x => x.id !== t.id);
+  // bind deletes
+  $$("[data-del]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-del");
+      transactions = transactions.filter(x=>x.id!==id);
       saveState();
-      renderTransactionsTable();
+      renderTransactions();
       renderOverviewChart();
       renderReportChart();
-      updateOverviewStats();
-      renderBudgets(); // also refresh budgets, since spend may change
+      updateStats();
+      renderBudgets();
     });
-    tdAction.appendChild(delBtn);
-
-    tr.appendChild(tdDate);
-    tr.appendChild(tdDesc);
-    tr.appendChild(tdAmount);
-    tr.appendChild(tdType);
-    tr.appendChild(tdAction);
-    tbody.appendChild(tr);
   });
 }
 
-/* ============================================================================
-   OVERVIEW (Stats + Line Chart)
-   ============================================================================ */
-function updateOverviewStats() {
-  const income = transactions.filter(t => t.type === "income").reduce((acc, t) => acc + Number(t.amount || 0), 0);
-  const expense = transactions.filter(t => t.type === "expense").reduce((acc, t) => acc + Number(t.amount || 0), 0);
-  const balance = income - expense;
-
-  const incomeStat = document.getElementById("incomeStat");
-  const expenseStat = document.getElementById("expenseStat");
-  const balanceStat = document.getElementById("balanceStat");
-
-  if (incomeStat) incomeStat.textContent = `Income: $${income.toFixed(2)}`;
-  if (expenseStat) expenseStat.textContent = `Expenses: $${expense.toFixed(2)}`;
-  if (balanceStat) balanceStat.textContent = `Balance: $${balance.toFixed(2)}`;
+/* ======= Overview ======= */
+let overviewChart;
+function lockCanvasHeight(id, px){
+  const cv = document.getElementById(id);
+  if(cv && !cv.dataset.lock){
+    cv.height = px;
+    cv.style.height = px+"px";
+    cv.dataset.lock = "1";
+  }
 }
 
-/* Prepare data for line chart => cumulative balance over time */
-function getOverviewSeries() {
-  // Sort by date (basic lexicographic for locale string is unreliable;
-  // but since we only use "today" forward in small demo, keep as-is.)
-  // If you want precise ordering, store ISO date strings in future.
-  let running = 0;
-  const labels = [];
-  const series = [];
+function updateStats(){
+  const income = transactions.filter(t=>t.type==="income").reduce((a,b)=>a+Number(b.amount||0),0);
+  const expense = transactions.filter(t=>t.type==="expense").reduce((a,b)=>a+Number(b.amount||0),0);
+  const balance = income - expense;
+  $("#incomeStat").textContent  = `$${income.toFixed(2)}`;
+  $("#expenseStat").textContent = `$${expense.toFixed(2)}`;
+  $("#balanceStat").textContent = `$${balance.toFixed(2)}`;
+}
 
-  transactions.forEach(t => {
-    const amt = t.type === "income" ? Number(t.amount || 0) : -Number(t.amount || 0);
-    running += amt;
+function renderOverviewChart(){
+  lockCanvasHeight("overviewChart", 260);
+  const cv = $("#overviewChart");
+  if(!cv) return;
+  if(overviewChart) overviewChart.destroy();
+
+  let running=0;
+  const labels=[], series=[];
+  transactions.forEach(t=>{
+    running += (t.type==="income" ? 1 : -1) * Number(t.amount||0);
     labels.push(t.date);
     series.push(running);
   });
 
-  return { labels, series };
-}
-
-/* Create/Update line chart */
-function renderOverviewChart() {
-  // Lock canvas height once to stop auto-growth
-  lockCanvasHeight("overviewChart", 260);
-
-  const canvas = document.getElementById("overviewChart");
-  if (!canvas) return;
-
-  // Destroy old instance if present (prevents size creep)
-  if (overviewChart) {
-    overviewChart.destroy();
-  }
-
-  const { labels, series } = getOverviewSeries();
-
-  overviewChart = new Chart(canvas.getContext("2d"), {
+  overviewChart = new Chart(cv.getContext("2d"), {
     type: "line",
     data: {
       labels,
-      datasets: [
-        {
-          label: "Balance Over Time",
-          data: series,
-          borderColor: "#36a2eb",
-          backgroundColor: "rgba(54,162,235,0.12)",
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 3,
-          pointHoverRadius: 4
-        }
-      ]
+      datasets: [{
+        label: "Balance Over Time",
+        data: series,
+        borderColor:"#36a2eb",
+        backgroundColor:"rgba(54,162,235,.12)",
+        borderWidth:2,
+        fill:true,
+        tension:.3,
+        pointRadius:3,
+        pointHoverRadius:4
+      }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false, // respect our locked pixel height
-      plugins: {
-        legend: { display: true, position: "top" },
-        tooltip: { mode: "index", intersect: false }
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:true, position:"top" }
       },
-      scales: {
-        x: {
-          display: true,
-          title: { display: true, text: "Date" },
-          grid: { display: false }
-        },
-        y: {
-          display: true,
-          title: { display: true, text: "USD" },
-          grid: { color: "rgba(0,0,0,0.05)" }
-        }
-      },
-      interaction: { mode: "nearest", intersect: false }
+      scales:{
+        x:{ grid:{display:false}, title:{display:true, text:"Date"} },
+        y:{ grid:{color:"rgba(0,0,0,.06)"}, title:{display:true, text:"USD"} }
+      }
     }
   });
 
-  updateOverviewStats();
+  updateStats();
 }
 
-/* ============================================================================
-   BUDGET (Category limits + filling bar)
-   ============================================================================ */
-function initBudget() {
-  const form = document.getElementById("budgetForm");
-  if (!form) return;
+/* ======= Budget ======= */
+function initBudget(){
+  const form = $("#budgetForm");
+  if(!form) return;
 
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", (e)=>{
     e.preventDefault();
-    const catEl = document.getElementById("bCategory");
-    const limitEl = document.getElementById("bLimit");
-
-    const category = (catEl?.value || "").trim();
-    const limit = parseFloat(limitEl?.value || "0");
-
-    if (!category || !Number.isFinite(limit) || limit <= 0) return;
+    const category = $("#bCategory").value.trim();
+    const limit = parseFloat($("#bLimit").value);
+    if(!category || !Number.isFinite(limit) || limit<=0) return;
 
     budgets.push({ id: uid(), category, limit });
     saveState();
@@ -358,484 +176,283 @@ function initBudget() {
   renderBudgets();
 }
 
-/* Render budget cards with fill bars */
-function renderBudgets() {
-  const list = document.getElementById("budgetList");
-  if (!list) return;
-
+function renderBudgets(){
+  const list = $("#budgetList");
   list.innerHTML = "";
-
-  if (!budgets.length) {
-    list.innerHTML = `<p style="opacity:.7">No budgets yet. Add a category and limit above.</p>`;
+  if(!budgets.length){
+    list.innerHTML = `<div class="card">No budgets yet. Add a category and limit above.</div>`;
     return;
   }
 
-  // For each budget, compute spent = sum(expenses with desc === category)
-  budgets.forEach((b) => {
+  budgets.forEach(b=>{
     const spent = transactions
-      .filter(t => t.type === "expense" && t.desc.toLowerCase() === b.category.toLowerCase())
-      .reduce((acc, t) => acc + Number(t.amount || 0), 0);
+      .filter(t=>t.type==="expense" && t.desc.toLowerCase()===b.category.toLowerCase())
+      .reduce((a,t)=>a+Number(t.amount||0),0);
 
-    const pct = b.limit > 0 ? Math.min(100, (spent / b.limit) * 100) : 0;
+    const pct = b.limit ? Math.min(100, (spent/b.limit)*100) : 0;
 
-    // Card/container
     const card = document.createElement("div");
-    card.className = "budget-item";
+    card.className = "card budget-item";
+    card.innerHTML = `
+      <h4 style="margin:0 0 6px;">${b.category}: $${spent.toFixed(2)} / $${b.limit.toFixed(2)}</h4>
+      <div class="bar"><div class="fill" style="width:${pct}%;"></div></div>
+      <div style="margin-top:8px;">
+        <button class="btn-ghost" data-rm="${b.id}">Remove</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
 
-    const title = document.createElement("h4");
-    title.textContent = `${b.category}: $${spent.toFixed(2)} / $${b.limit.toFixed(2)}`;
-
-    const bar = document.createElement("div");
-    bar.className = "bar";
-
-    const fill = document.createElement("div");
-    fill.className = "fill";
-    fill.style.width = `${pct}%`;
-
-    // Color alert when over 90%
-    if (pct >= 90) fill.style.background = "var(--red-500, #ef4444)";
-    else if (pct >= 70) fill.style.background = "var(--amber-500, #f59e0b)";
-    else fill.style.background = "var(--green-500, #22c55e)";
-
-    bar.appendChild(fill);
-
-    // Optional: delete budget action
-    const actions = document.createElement("div");
-    actions.style.marginTop = "8px";
-    const del = document.createElement("button");
-    del.textContent = "Remove";
-    del.className = "btn-ghost";
-    del.addEventListener("click", () => {
-      budgets = budgets.filter(x => x.id !== b.id);
+  $$("[data-rm]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-rm");
+      budgets = budgets.filter(x=>x.id!==id);
       saveState();
       renderBudgets();
     });
-    actions.appendChild(del);
-
-    card.appendChild(title);
-    card.appendChild(bar);
-    card.appendChild(actions);
-    list.appendChild(card);
   });
 }
 
-/* ============================================================================
-   REPORTS (Pie chart of expenses by category/description)
-   ============================================================================ */
-function renderReportChart() {
-  // Lock canvas height to prevent growth
+/* ======= Reports ======= */
+let reportChart;
+function renderReportChart(){
+  const cv = $("#reportChart");
+  if(!cv) return;
+  // lock height to prevent growth
   lockCanvasHeight("reportChart", 280);
+  if(reportChart) reportChart.destroy();
 
-  const cv = document.getElementById("reportChart");
-  if (!cv) return;
-
-  if (reportChart) reportChart.destroy();
-
-  // Aggregate spend by description (treat desc like category label)
-  const buckets = {};
-  transactions
-    .filter(t => t.type === "expense")
-    .forEach(t => {
-      const key = t.desc || "Other";
-      buckets[key] = (buckets[key] || 0) + Number(t.amount || 0);
-    });
-
-  const labels = Object.keys(buckets);
-  const values = Object.values(buckets);
-
-  // If nothing to show, render a “blank” pie
-  const dataVals = values.length ? values : [1];
-  const dataLabs = labels.length ? labels : ["No expenses"];
+  const agg = {};
+  transactions.filter(t=>t.type==="expense").forEach(t=>{
+    const k = t.desc || "Other";
+    agg[k] = (agg[k]||0) + Number(t.amount||0);
+  });
+  const labels = Object.keys(agg).length ? Object.keys(agg) : ["No expenses"];
+  const values = Object.keys(agg).length ? Object.values(agg) : [1];
 
   reportChart = new Chart(cv.getContext("2d"), {
-    type: "pie",
-    data: {
-      labels: dataLabs,
-      datasets: [{
-        data: dataVals,
-        backgroundColor: [
-          "#36a2eb", "#ff6384", "#ffce56", "#4caf50", "#9c27b0",
-          "#8bc34a", "#ff9800", "#03a9f4", "#e91e63", "#795548"
-        ],
-        borderWidth: 1,
-        borderColor: "#fff"
+    type:"pie",
+    data:{
+      labels,
+      datasets:[{
+        data: values,
+        backgroundColor: ["#36a2eb","#ff6384","#ffce56","#4caf50","#9c27b0","#8bc34a","#ff9800","#03a9f4"],
+        borderColor:"#fff", borderWidth:1
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true, position: "right" }
-      }
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:"right" } }
     }
   });
 }
 
-/* ============================================================================
-   NEWS (GNews.io) - requires CONFIG.GNEWS_KEY
-   ============================================================================ */
-async function loadNews() {
-  const container = document.getElementById("newsList");
-  if (!container) return;
+/* ======= News (GNews) ======= */
+async function loadNews(){
+  const container = $("#newsList");
+  if(!container) return;
+  container.innerHTML = `<div style="padding:14px;">Loading news…</div>`;
 
-  // Defensive: show loading text
-  container.innerHTML = `<p>Loading news...</p>`;
-
-  try {
-    if (!window.CONFIG || !CONFIG.GNEWS_KEY) {
-      throw new Error("Missing CONFIG.GNEWS_KEY");
-    }
-
-    // GNews endpoint: top headlines / business
-    const endpoint =
-      `https://gnews.io/api/v4/top-headlines?token=${encodeURIComponent(CONFIG.GNEWS_KEY)}&lang=en&topic=business`;
-
-    const res = await fetch(endpoint);
-    if (!res.ok) throw new Error(`News http ${res.status}`);
-
+  try{
+    if(!CONFIG || !CONFIG.GNEWS_KEY) throw new Error("Missing GNEWS key");
+    const url = `https://gnews.io/api/v4/top-headlines?token=${encodeURIComponent(CONFIG.GNEWS_KEY)}&lang=en&topic=business`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const items = Array.isArray(data.articles) ? data.articles.slice(0, 8) : [];
 
+    const articles = Array.isArray(data.articles) ? data.articles.slice(0,8) : [];
     container.innerHTML = "";
-
-    if (!items.length) {
-      container.innerHTML = `<p>No news available right now.</p>`;
+    if(!articles.length){
+      container.innerHTML = `<div style="padding:14px;">No news available.</div>`;
       return;
     }
 
-    // Build cards in a grid
-    items.forEach(a => {
-      const card = document.createElement("div");
-      card.className = "news-item";
-
-      const title = document.createElement("h4");
-      const link = document.createElement("a");
-      link.href = a.url;
-      link.target = "_blank";
-      link.rel = "noopener";
-      link.textContent = a.title || "Untitled";
-      title.appendChild(link);
-
-      const desc = document.createElement("p");
-      desc.textContent = a.description || "No description available.";
-
-      card.appendChild(title);
-      card.appendChild(desc);
-      container.appendChild(card);
+    articles.forEach(a=>{
+      const item = document.createElement("div");
+      item.className = "news-item";
+      item.innerHTML = `
+        <h4><a href="${a.url}" target="_blank" rel="noopener">${a.title || "Untitled"}</a></h4>
+        <p>${a.description || "No description available."}</p>
+      `;
+      container.appendChild(item);
     });
-  } catch (err) {
+  }catch(err){
     console.error("News API error:", err);
-    container.innerHTML = `<p>⚠️ Could not load news. Check your GNews key or try later.</p>`;
+    container.innerHTML = `<div style="padding:14px;">⚠️ Could not load news. Check your GNews key or try later.</div>`;
   }
 }
 
-/* ============================================================================
-   MARKETS
-   - AAPL stock (Alpha Vantage GLOBAL_QUOTE)
-   - Currency converter (Alpha Vantage CURRENCY_EXCHANGE_RATE)
-   - Extra widgets (crypto via AV; commodities demo)
-   ============================================================================ */
-async function loadAAPLQuote() {
-  const box = document.getElementById("stockBox");
-  if (!box) return;
-
-  box.innerHTML = `Loading AAPL stock...`;
-
-  try {
-    if (!window.CONFIG || !CONFIG.ALPHA_VANTAGE_KEY) {
-      throw new Error("Missing CONFIG.ALPHA_VANTAGE_KEY");
-    }
-
-    const url =
-      `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=${encodeURIComponent(CONFIG.ALPHA_VANTAGE_KEY)}`;
-
+/* ======= Markets ======= */
+async function loadAAPL(){
+  const box = $("#stockBox");
+  if(!box) return;
+  box.textContent = "Loading AAPL stock…";
+  try{
+    if(!CONFIG || !CONFIG.ALPHA_VANTAGE_KEY) throw new Error("Missing AV key");
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=${encodeURIComponent(CONFIG.ALPHA_VANTAGE_KEY)}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`AAPL http ${res.status}`);
-
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const q = data && data["Global Quote"];
+    const q = data["Global Quote"];
+    if(!q){ box.innerHTML = `<p>⚠️ API limit reached. Try again later.</p>`; return; }
 
-    if (!q) {
-      box.innerHTML = `<p>⚠️ API limit reached or unavailable.</p>`;
-      return;
-    }
-
-    const price = parseFloat(q["05. price"] || "0");
-    const changePercent = (q["10. change percent"] || "").trim();
-
+    const price  = parseFloat(q["05. price"]||"0");
+    const change = (q["10. change percent"]||"").trim();
     box.innerHTML = `
       <h3 style="margin:0 0 6px;">AAPL Stock</h3>
       <p style="margin:4px 0;">Price: $${price.toFixed(2)}</p>
-      <p style="margin:4px 0;">Change: ${changePercent}</p>
+      <p style="margin:4px 0;">Change: ${change}</p>
     `;
-  } catch (err) {
+  }catch(err){
     console.error("AAPL error:", err);
     box.innerHTML = `<p>⚠️ Could not load stock data.</p>`;
   }
 }
 
-function initCurrencyConverter() {
-  const btn = document.getElementById("convertBtn");
-  const amountEl = document.getElementById("currencyAmount");
-  const fromEl = document.getElementById("currencyFrom");
-  const toEl = document.getElementById("currencyTo");
-  const resultEl = document.getElementById("currencyResult");
-
-  if (!btn || !amountEl || !fromEl || !toEl || !resultEl) return;
-
-  btn.addEventListener("click", async () => {
-    const amt = parseFloat(amountEl.value || "0");
-    const from = fromEl.value || "USD";
-    const to = toEl.value || "EUR";
-
-    if (!Number.isFinite(amt) || amt <= 0) {
-      resultEl.textContent = "Enter a valid amount.";
-      return;
-    }
-
-    try {
-      if (!CONFIG || !CONFIG.ALPHA_VANTAGE_KEY) {
-        throw new Error("Missing CONFIG.ALPHA_VANTAGE_KEY");
-      }
-
-      const url =
-        `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${encodeURIComponent(from)}&to_currency=${encodeURIComponent(to)}&apikey=${encodeURIComponent(CONFIG.ALPHA_VANTAGE_KEY)}`;
-
+function initConverter(){
+  const btn = $("#convertBtn");
+  if(!btn) return;
+  btn.addEventListener("click", async ()=>{
+    const amt  = parseFloat($("#currencyAmount").value||"0");
+    const from = $("#currencyFrom").value;
+    const to   = $("#currencyTo").value;
+    const out  = $("#currencyResult");
+    if(!Number.isFinite(amt) || amt<=0){ out.textContent = "Enter a valid amount."; return; }
+    try{
+      if(!CONFIG || !CONFIG.ALPHA_VANTAGE_KEY) throw new Error("Missing AV key");
+      const url = `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${encodeURIComponent(from)}&to_currency=${encodeURIComponent(to)}&apikey=${encodeURIComponent(CONFIG.ALPHA_VANTAGE_KEY)}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`FX http ${res.status}`);
-
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      const rateStr = data && data["Realtime Currency Exchange Rate"] && data["Realtime Currency Exchange Rate"]["5. Exchange Rate"];
-
-      if (!rateStr) {
-        resultEl.textContent = "Rate unavailable (API limit?). Try later.";
-        return;
-      }
-
-      const rate = parseFloat(rateStr);
-      const converted = (amt * rate).toFixed(2);
-      resultEl.textContent = `${amt} ${from} = ${converted} ${to}`;
-    } catch (err) {
+      const rate = parseFloat(data?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"]||"0");
+      if(!rate){ out.textContent = "Rate unavailable (limit?). Try later."; return; }
+      out.textContent = `${amt} ${from} = ${(amt*rate).toFixed(2)} ${to}`;
+    }catch(err){
       console.error("FX error:", err);
-      resultEl.textContent = "⚠️ Conversion failed.";
+      out.textContent = "⚠️ Conversion failed.";
     }
   });
 }
 
-async function loadExtraMarkets() {
-  const cryptoBox = document.getElementById("cryptoBox");
-  const commodityBox = document.getElementById("commodityBox");
+async function loadExtraMarkets(){
+  const crypto = $("#cryptoBox");
+  const comm   = $("#commodityBox");
 
-  // Attempt BTC & ETH spot via AV (free plan can be rate limited)
-  if (cryptoBox) {
-    try {
-      if (!CONFIG || !CONFIG.ALPHA_VANTAGE_KEY) throw new Error("Missing key");
-      const btcURL =
-        `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=USD&apikey=${encodeURIComponent(CONFIG.ALPHA_VANTAGE_KEY)}`;
-      const ethURL =
-        `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=ETH&to_currency=USD&apikey=${encodeURIComponent(CONFIG.ALPHA_VANTAGE_KEY)}`;
-
-      const [btcRes, ethRes] = await Promise.all([fetch(btcURL), fetch(ethURL)]);
-      const [btcJson, ethJson] = await Promise.all([btcRes.json(), ethRes.json()]);
-
-      const btc = parseFloat(btcJson?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"] || "0");
-      const eth = parseFloat(ethJson?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"] || "0");
-
-      if (btc && eth) {
-        cryptoBox.innerHTML = `
-          <h3 style="margin:0 0 6px;">Crypto</h3>
+  // Crypto (best-effort; may hit rate limits)
+  if(crypto){
+    try{
+      if(!CONFIG || !CONFIG.ALPHA_VANTAGE_KEY) throw new Error("Missing AV key");
+      const [b,e] = await Promise.all([
+        fetch(`https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=USD&apikey=${encodeURIComponent(CONFIG.ALPHA_VANTAGE_KEY)}`),
+        fetch(`https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=ETH&to_currency=USD&apikey=${encodeURIComponent(CONFIG.ALPHA_VANTAGE_KEY)}`)
+      ]);
+      const bj = await b.json(), ej = await e.json();
+      const btc = parseFloat(bj?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"]||"0");
+      const eth = parseFloat(ej?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"]||"0");
+      if(btc && eth){
+        crypto.innerHTML = `<h3 style="margin:0 0 6px;">Crypto</h3>
           <p style="margin:4px 0;">BTC: $${btc.toFixed(2)}</p>
-          <p style="margin:4px 0;">ETH: $${eth.toFixed(2)}</p>
-        `;
-      } else {
-        cryptoBox.innerHTML = `<p>⚠️ Crypto data rate-limited. Try later.</p>`;
+          <p style="margin:4px 0;">ETH: $${eth.toFixed(2)}</p>`;
+      }else{
+        crypto.innerHTML = `<p>⚠️ Crypto data rate-limited. Try later.</p>`;
       }
-    } catch (e) {
-      console.warn("Crypto error:", e);
-      cryptoBox.innerHTML = `<p>⚠️ Could not load crypto data.</p>`;
+    }catch(e){
+      crypto.innerHTML = `<p>⚠️ Could not load crypto data.</p>`;
     }
   }
 
-  // Commodities (demo text placeholders; AV free tier doesn’t provide direct)
-  if (commodityBox) {
-    commodityBox.innerHTML = `
-      <h3 style="margin:0 0 6px;">Commodities</h3>
+  // Commodities (demo placeholders)
+  if(comm){
+    comm.innerHTML = `<h3 style="margin:0 0 6px;">Commodities</h3>
       <p style="margin:4px 0;">Gold (XAU/USD): ~\$1,950</p>
       <p style="margin:4px 0;">Oil (WTI): ~\$75</p>
-      <small style="opacity:.7;">(Demo values)</small>
-    `;
+      <small style="opacity:.7;">(Demo values)</small>`;
   }
 }
 
-/* ============================================================================
-   AI ASSISTANT (HuggingFace DialoGPT-medium)
-   ============================================================================ */
-function initAssistant() {
-  const form = document.getElementById("chatForm");
-  const input = document.getElementById("chatInput");
-  const box = document.getElementById("chatbox");
-  if (!form || !input || !box) return;
-
-  form.addEventListener("submit", async (e) => {
+/* ======= Assistant (HuggingFace DialoGPT) ======= */
+function initAssistant(){
+  const form = $("#chatForm");
+  if(!form) return;
+  form.addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const userText = (input.value || "").trim();
-    if (!userText) return;
+    const input = $("#chatInput");
+    const text = (input.value||"").trim();
+    if(!text) return;
 
-    // append user bubble
-    appendChatBubble("user", userText);
+    appendMsg("user", text);
+    appendMsg("ai", "Thinking…");
 
-    // call HF Dialog model
-    try {
-      if (!CONFIG || !CONFIG.HF_API_KEY) throw new Error("Missing CONFIG.HF_API_KEY");
-
-      // Set a small placeholder while thinking
-      appendChatBubble("ai", "Thinking...");
-
-      const res = await fetch("https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${CONFIG.HF_API_KEY}`,
-          "Content-Type": "application/json"
+    try{
+      if(!CONFIG || !CONFIG.HF_API_KEY) throw new Error("Missing HF key");
+      const res = await fetch("https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",{
+        method:"POST",
+        headers:{
+          "Authorization":`Bearer ${CONFIG.HF_API_KEY}`,
+          "Content-Type":"application/json"
         },
-        body: JSON.stringify({ inputs: userText })
+        body: JSON.stringify({ inputs: text })
       });
-
-      if (!res.ok) throw new Error(`AI http ${res.status}`);
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-
-      // Remove the "Thinking..." last ai bubble if present
-      replaceLastAIBubble(extractDialoText(data));
-
-    } catch (err) {
+      const reply = data?.[0]?.generated_text || "…";
+      replaceLastAI(reply);
+    }catch(err){
       console.error("AI error:", err);
-      replaceLastAIBubble("⚠️ AI service unreachable. Check your HF key or try again later.");
+      replaceLastAI("⚠️ AI service unreachable. Check your key or try again later.");
     }
-
-    // reset
     form.reset();
   });
 }
 
-/* Helper: Append chat bubble */
-function appendChatBubble(role, text) {
-  const box = document.getElementById("chatbox");
-  if (!box) return;
+function appendMsg(role, text){
+  const box = $("#chatbox");
   const div = document.createElement("div");
-  div.className = role === "user" ? "user-msg" : "ai-msg";
+  div.className = role==="user" ? "user-msg" : "ai-msg";
   div.textContent = text;
   box.appendChild(div);
-  // autoscroll
   box.scrollTop = box.scrollHeight;
 }
-
-/* Helper: Replace last AI bubble content */
-function replaceLastAIBubble(text) {
-  const box = document.getElementById("chatbox");
-  if (!box) return;
-  // Find last AI message
-  const bubbles = $all("#chatbox .ai-msg");
-  if (bubbles.length) {
-    bubbles[bubbles.length - 1].textContent = text;
-  } else {
-    appendChatBubble("ai", text);
-  }
+function replaceLastAI(text){
+  const box = $("#chatbox");
+  const list = $$("#chatbox .ai-msg");
+  if(list.length){ list[list.length-1].textContent = text; } else { appendMsg("ai", text); }
 }
 
-/* Helper: Extract DialoGPT response */
-function extractDialoText(apiJson) {
-  try {
-    // DialoGPT returns [{ generated_text: "..." }]
-    const txt = apiJson?.[0]?.generated_text;
-    return txt || "…";
-  } catch {
-    return "…";
-  }
+/* ======= Settings ======= */
+function initSettings(){
+  $("#toggleDark")?.addEventListener("click", ()=>{
+    ui.darkMode = !ui.darkMode;
+    document.body.classList.toggle("dark", ui.darkMode);
+    saveState();
+  });
+  $("#resetData")?.addEventListener("click", ()=>{
+    if(!confirm("Delete all transactions and budgets?")) return;
+    transactions=[]; budgets=[];
+    saveState();
+    renderTransactions(); renderBudgets();
+    renderOverviewChart(); renderReportChart(); updateStats();
+  });
+  $("#logout")?.addEventListener("click", ()=>{ window.location.href = "index.html"; });
 }
 
-/* ============================================================================
-   SETTINGS (Dark mode, reset, logout)
-   ============================================================================ */
-function initSettings() {
-  const toggle = document.getElementById("toggleDark");
-  const resetBtn = document.getElementById("resetData");
-  const logoutBtn = document.getElementById("logout");
-
-  if (toggle) {
-    toggle.addEventListener("click", () => {
-      ui.darkMode = !ui.darkMode;
-      applyDarkMode();
-      saveState();
-    });
-  }
-
-  if (resetBtn) {
-    resetBtn.addEventListener("click", () => {
-      const ok = confirm("This will delete all transactions and budgets. Continue?");
-      if (!ok) return;
-
-      // wipe state
-      transactions = [];
-      budgets = [];
-      saveState();
-
-      // re-render everything
-      renderTransactionsTable();
-      renderBudgets();
-      renderOverviewChart();
-      renderReportChart();
-      updateOverviewStats();
-    });
-  }
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      // In this demo we simply redirect back to index.html
-      window.location.href = "index.html";
-    });
-  }
-}
-
-/* Apply dark mode class to <body> */
-function applyDarkMode() {
-  if (ui.darkMode) {
-    document.body.classList.add("dark");
-  } else {
-    document.body.classList.remove("dark");
-  }
-}
-
-/* ============================================================================
-   INIT
-   ============================================================================ */
-function init() {
-  // Load persisted state
-  loadState();
-
-  // Apply dark mode preference immediately (no flash)
-  applyDarkMode();
-
-  // Initialize sections
+/* ======= Init ======= */
+function init(){
+  document.body.classList.toggle("dark", ui.darkMode);
   initTabs();
   initTransactions();
   initBudget();
-  initAssistant();
-  initSettings();
-  initCurrencyConverter();
-
-  // Initial renders
   renderOverviewChart();
   renderReportChart();
-  renderBudgets();
-  updateOverviewStats();
+  updateStats();
 
-  // External data fetches
   loadNews();
-  loadAAPLQuote();
+  loadAAPL();
+  initConverter();
   loadExtraMarkets();
 
-  // Fix: prevent charts from changing height on window resizes by locking once
-  // (We already lock on first render; no need to handle resize events)
+  initAssistant();
+  initSettings();
 }
 
-// Kick off
-window.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", init);
