@@ -1,9 +1,26 @@
+/* General */
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
+  font-family: "Segoe UI", sans-serif;
   display: flex;
+  background: linear-gradient(135deg, #f0f4f8, #d9e4ec);
+  transition: background 0.3s, color 0.3s;
 }
 
+/* Dark Mode */
+body.dark {
+  background: linear-gradient(135deg, #1e272e, #2f3640);
+  color: #ecf0f1;
+}
+body.dark .card, body.dark .widget, body.dark table {
+  background: #2c3e50;
+  color: white;
+}
+body.dark th, body.dark td {
+  border-color: #444;
+}
+
+/* Sidebar */
 .sidebar {
   width: 60px;
   background: #2c3e50;
@@ -12,19 +29,14 @@ body {
   overflow: hidden;
   position: fixed;
 }
-
-.sidebar:hover {
-  width: 200px;
-}
-
+.sidebar:hover { width: 200px; }
 .sidebar-content {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   padding-top: 20px;
 }
-
-.tab-button, #logoutBtn, #resetBtn {
+.tab-button, #logoutBtn, #resetBtn, #darkModeToggle {
   background: none;
   border: none;
   color: white;
@@ -34,30 +46,24 @@ body {
   font-size: 16px;
   transition: all 0.3s;
 }
-
-.tab-button:hover, #logoutBtn:hover, #resetBtn:hover {
+.tab-button:hover, #logoutBtn:hover, #resetBtn:hover, #darkModeToggle:hover {
   background: #34495e;
   transform: scale(1.05);
 }
 
+/* Main content */
 .main-content {
   margin-left: 60px;
   padding: 20px;
   width: 100%;
   transition: margin-left 0.3s;
 }
+.sidebar:hover ~ .main-content { margin-left: 200px; }
 
-.sidebar:hover ~ .main-content {
-  margin-left: 200px;
-}
+.tab { display: none; }
+.tab.active { display: block; }
 
-.tab {
-  display: none;
-}
-.tab.active {
-  display: block;
-}
-
+/* Cards */
 .cards {
   display: flex;
   gap: 15px;
@@ -65,41 +71,44 @@ body {
 }
 .card {
   flex: 1;
-  background: #ecf0f1;
+  background: #fff;
   padding: 20px;
-  border-radius: 8px;
+  border-radius: 12px;
   font-weight: bold;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
 }
+.card:hover { transform: translateY(-3px); }
 
+/* Overview widgets */
+.overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.widget {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+body.dark .widget { background: #2c3e50; }
+
+/* Forms & Tables */
 form input, form select, form button {
   margin: 5px;
   padding: 8px;
 }
-
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 15px;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
 }
 th, td {
   border: 1px solid #ccc;
   padding: 8px;
   text-align: center;
-}
-
-#budgetList .budget-item {
-  margin: 10px 0;
-}
-.progress-bar {
-  background: #ccc;
-  border-radius: 5px;
-  height: 20px;
-  overflow: hidden;
-}
-.progress {
-  height: 100%;
-  background: #36a2eb;
-  text-align: right;
-  padding-right: 5px;
-  color: white;
 }
