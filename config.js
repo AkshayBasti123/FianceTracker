@@ -1,6 +1,6 @@
 const CONFIG = {
   NEWS_API_KEY: "9ab277b731a1413092fcea1644db983f",     
   ALPHA_VANTAGE_KEY: "UHV4STGFZJQCSZRI",                  
-  HF_API_KEY: "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",    
+  HF_API_KEY: "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",    
   FMP_API_KEY: "demo"                                     
 };
