@@ -1,99 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Finance Tracker - Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Dashboard</title>
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-  <div class="dashboard">
-    <aside class="sidebar">
-      <h2 class="logo">💰</h2>
-      <nav>
-        <button class="tab-btn active" data-tab="overview">
-          <i data-lucide="home"></i><span>Overview</span>
-        </button>
-        <button class="tab-btn" data-tab="transactions">
-          <i data-lucide="list"></i><span>Transactions</span>
-        </button>
-        <button class="tab-btn" data-tab="budget">
-          <i data-lucide="wallet"></i><span>Budget</span>
-        </button>
-        <button class="tab-btn" data-tab="reports">
-          <i data-lucide="bar-chart-2"></i><span>Reports</span>
-        </button>
-        <button class="tab-btn" data-tab="settings">
-          <i data-lucide="settings"></i><span>Settings</span>
-        </button>
-      </nav>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <h1 id="tab-title">Overview</h1>
-        <div class="user-info">
-          <span class="username">Welcome, User</span>
-          <button id="logout">Logout</button>
-        </div>
-      </header>
-
-      <section id="overview" class="tab-content active">
-        <div class="overview-grid">
-          <div class="cards">
-            <div class="card">Total Balance <h2 id="balance">$0</h2></div>
-            <div class="card">Income <h2 id="income">$0</h2></div>
-            <div class="card">Expenses <h2 id="expenses">$0</h2></div>
-            <div class="card">Savings <h2 id="savings">$0</h2></div>
-          </div>
-          <div class="charts">
-            <canvas id="expenseChart"></canvas>
-            <canvas id="incomeExpenseChart"></canvas>
-          </div>
-        </div>
-      </section>
-      <section id="transactions" class="tab-content">
-        <h2>Manage Transactions</h2>
-        <form id="add-transaction">
-          <input type="text" id="desc" placeholder="Description" required />
-          <input type="number" id="amount" placeholder="Amount" required />
-          <select id="type">
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-          </select>
-          <button type="submit">Add</button>
-        </form>
-        <ul id="transaction-list"></ul>
-      </section>
-
-      <section id="budget" class="tab-content">
-        <h2>Budget Tracking</h2>
-        <form id="set-budget-form">
-          <input type="number" id="budget-input" placeholder="Set Monthly Budget" required />
-          <button type="submit">Save Budget</button>
-        </form>
-        <p>Budget: $<span id="budget-amount">0</span></p>
-        <p>Spent: $<span id="spent-amount">0</span></p>
-        <progress id="budget-progress" value="0" max="100"></progress>
-      </section>
-
-      <section id="reports" class="tab-content">
-        <h2>Reports</h2>
-        <p id="report-summary">Add transactions to see spending summary.</p>
-      </section>
-
-      <section id="settings" class="tab-content">
-        <h2>Settings</h2>
-        <label>
-          <input type="checkbox" id="dark-mode-toggle"> Dark Mode
-        </label>
-        <button id="reset-data">Reset All Data</button>
-      </section>
-    </main>
+  <div class="sidebar">
+    <div class="sidebar-content">
+      <button class="tab-button" data-tab="overview">🏠 Overview</button>
+      <button class="tab-button" data-tab="transactions">💳 Transactions</button>
+      <button class="tab-button" data-tab="budget">📊 Budget</button>
+      <button class="tab-button" data-tab="reports">📑 Reports</button>
+      <button id="logoutBtn">🚪 Logout</button>
+      <button id="resetBtn">♻️ Reset Data</button>
+    </div>
   </div>
+
+  <div class="main-content">
+    <!-- Overview -->
+    <div id="overview" class="tab active">
+      <h1>Overview</h1>
+      <div class="cards">
+        <div class="card">Balance: <span id="balance">$0</span></div>
+        <div class="card">Income: <span id="income">$0</span></div>
+        <div class="card">Expenses: <span id="expenses">$0</span></div>
+        <div class="card">Savings: <span id="savings">$0</span></div>
+      </div>
+      <canvas id="lineChart"></canvas>
+    </div>
+
+    <!-- Transactions -->
+    <div id="transactions" class="tab">
+      <h1>Transactions</h1>
+      <form id="transactionForm">
+        <input type="text" id="desc" placeholder="Description" required>
+        <input type="number" id="amount" placeholder="Amount" required>
+        <select id="type" required>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+        <select id="category" required>
+          <option value="Food">Food</option>
+          <option value="Transport">Transport</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Bills">Bills</option>
+          <option value="Other">Other</option>
+        </select>
+        <input type="month" id="month" required>
+        <button type="submit">Add</button>
+      </form>
+      <table>
+        <thead>
+          <tr>
+            <th>Description</th><th>Amount</th><th>Type</th><th>Category</th><th>Month</th>
+          </tr>
+        </thead>
+        <tbody id="transactionList"></tbody>
+      </table>
+    </div>
+
+    <!-- Budget -->
+    <div id="budget" class="tab">
+      <h1>Budget</h1>
+      <form id="budgetForm">
+        <select id="budgetCategory" required>
+          <option value="Food">Food</option>
+          <option value="Transport">Transport</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Bills">Bills</option>
+          <option value="Other">Other</option>
+        </select>
+        <input type="number" id="budgetAmount" placeholder="Budget Amount" required>
+        <button type="submit">Set Budget</button>
+      </form>
+      <div id="budgetList"></div>
+    </div>
+
+    <!-- Reports -->
+    <div id="reports" class="tab">
+      <h1>Reports</h1>
+      <div id="reportContent">
+        <p><strong>Total Income:</strong> <span id="reportIncome">$0</span></p>
+        <p><strong>Total Expenses:</strong> <span id="reportExpenses">$0</span></p>
+        <p><strong>Savings Rate:</strong> <span id="reportSavings">0%</span></p>
+        <p><strong>Top Spending Category:</strong> <span id="reportTopCat">N/A</span></p>
+      </div>
+    </div>
+  </div>
+
   <script src="dashboard.js"></script>
-  <script>lucide.createIcons();</script>
 </body>
 </html>
