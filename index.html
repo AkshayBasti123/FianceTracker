@@ -105,7 +105,6 @@
       document.getElementById("loginForm").style.display = "block";
     }
 
-    // Password Strength Meter
     function checkPasswordStrength() {
       const password = document.getElementById("signupPassword").value;
       const strengthBar = document.getElementById("strength");
@@ -118,28 +117,18 @@
 
       switch (strength) {
         case 0:
-          strengthBar.style.width = "0%";
-          break;
+          strengthBar.style.width = "0%"; break;
         case 1:
-          strengthBar.style.width = "25%";
-          strengthBar.style.background = "red";
-          break;
+          strengthBar.style.width = "25%"; strengthBar.style.background = "red"; break;
         case 2:
-          strengthBar.style.width = "50%";
-          strengthBar.style.background = "orange";
-          break;
+          strengthBar.style.width = "50%"; strengthBar.style.background = "orange"; break;
         case 3:
-          strengthBar.style.width = "75%";
-          strengthBar.style.background = "yellowgreen";
-          break;
+          strengthBar.style.width = "75%"; strengthBar.style.background = "yellowgreen"; break;
         case 4:
-          strengthBar.style.width = "100%";
-          strengthBar.style.background = "green";
-          break;
+          strengthBar.style.width = "100%"; strengthBar.style.background = "green"; break;
       }
     }
 
-    // Signup Logic
     function signup() {
       const name = document.getElementById("signupName").value;
       const email = document.getElementById("signupEmail").value;
@@ -151,21 +140,28 @@
         return;
       }
 
-      // Save to localStorage (demo only, not secure in real apps)
-      localStorage.setItem("user", JSON.stringify({ name, email, password }));
+      let users = JSON.parse(localStorage.getItem("users")) || [];
+      if (users.some(u => u.email === email)) {
+        alert("This email is already registered.");
+        return;
+      }
+
+      users.push({ name, email, password });
+      localStorage.setItem("users", JSON.stringify(users));
+
       alert("Signup successful! Please login.");
       showLogin();
     }
 
-    // Login Logic
     function login() {
       const email = document.getElementById("loginEmail").value;
       const password = document.getElementById("loginPassword").value;
-      const user = JSON.parse(localStorage.getItem("user"));
+      const users = JSON.parse(localStorage.getItem("users")) || [];
 
-      if (user && user.email === email && user.password === password) {
-        alert("Login successful!");
-        window.location.href = "dashboard.html"; // redirect after login
+      const user = users.find(u => u.email === email && u.password === password);
+      if (user) {
+        localStorage.setItem("currentUser", JSON.stringify(user));
+        window.location.href = "dashboard.html";
       } else {
         alert("Invalid email or password");
       }
