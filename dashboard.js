@@ -403,3 +403,35 @@ guardLoggedIn();
 renderTransactions(); updateAll();
 loadCrypto(); loadStock("AAPL"); loadFxPair(); loadNews();
 setInterval(loadCrypto, 60_000);
+
+// ======================
+// NEWS (via GNews.io)
+// ======================
+async function loadNews() {
+  try {
+    const url = `https://gnews.io/api/v4/top-headlines?token=${CONFIG.GNEWS_KEY}&lang=en&topic=business`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const newsContainer = document.getElementById("newsList");
+    newsContainer.innerHTML = "";
+
+    if (!data.articles || data.articles.length === 0) {
+      newsContainer.innerHTML = "<p>No news available right now.</p>";
+      return;
+    }
+
+    data.articles.slice(0, 6).forEach(article => {
+      const div = document.createElement("div");
+      div.className = "news-item";
+      div.innerHTML = `
+        <h3><a href="${article.url}" target="_blank">${article.title}</a></h3>
+        <p>${article.description || ""}</p>
+      `;
+      newsContainer.appendChild(div);
+    });
+  } catch (err) {
+    console.error("News API error:", err);
+    document.getElementById("newsList").innerHTML = "<p>⚠️ Could not load news.</p>";
+  }
+}
