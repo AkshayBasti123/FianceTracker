@@ -1,114 +1,161 @@
 /* General */
 body {
   margin: 0;
-  font-family: "Segoe UI", sans-serif;
-  display: flex;
-  background: linear-gradient(135deg, #f0f4f8, #d9e4ec);
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
   transition: background 0.3s, color 0.3s;
 }
 
-/* Dark Mode */
 body.dark {
-  background: linear-gradient(135deg, #1e272e, #2f3640);
-  color: #ecf0f1;
+  background: linear-gradient(135deg, #1e1e2f, #121212);
+  color: #f5f5f5;
 }
-body.dark .card, body.dark .widget, body.dark table {
-  background: #2c3e50;
-  color: white;
-}
-body.dark th, body.dark td {
-  border-color: #444;
+
+.dashboard {
+  display: flex;
+  height: 100vh;
 }
 
 /* Sidebar */
 .sidebar {
-  width: 60px;
-  background: #2c3e50;
-  height: 100vh;
-  transition: width 0.3s;
-  overflow: hidden;
-  position: fixed;
-}
-.sidebar:hover { width: 200px; }
-.sidebar-content {
+  width: 70px;
+  background: #222;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  padding-top: 20px;
+  align-items: center;
+  transition: width 0.3s;
+  overflow: hidden;
 }
-.tab-button, #logoutBtn, #resetBtn, #darkModeToggle {
+
+.sidebar:hover {
+  width: 200px;
+}
+
+.sidebar .logo {
+  padding: 20px;
+  text-align: center;
+}
+
+.sidebar .logo img {
+  width: 40px;
+  transition: width 0.3s;
+}
+
+.sidebar:hover .logo img {
+  width: 100px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.sidebar nav button {
   background: none;
   border: none;
   color: white;
   text-align: left;
-  padding: 15px;
-  cursor: pointer;
+  padding: 10px 20px;
   font-size: 16px;
-  transition: all 0.3s;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.3s;
 }
-.tab-button:hover, #logoutBtn:hover, #resetBtn:hover, #darkModeToggle:hover {
-  background: #34495e;
+
+.sidebar nav button:hover {
+  background: #444;
   transform: scale(1.05);
 }
 
-/* Main content */
-.main-content {
-  margin-left: 60px;
+/* Main Content */
+.content {
+  flex: 1;
   padding: 20px;
-  width: 100%;
-  transition: margin-left 0.3s;
+  overflow-y: auto;
 }
-.sidebar:hover ~ .main-content { margin-left: 200px; }
 
-.tab { display: none; }
-.tab.active { display: block; }
+.tab {
+  display: none;
+}
+
+.tab.active {
+  display: block;
+}
 
 /* Cards */
 .cards {
   display: flex;
-  gap: 15px;
+  gap: 20px;
   margin-bottom: 20px;
 }
+
 .card {
   flex: 1;
-  background: #fff;
   padding: 20px;
-  border-radius: 12px;
-  font-weight: bold;
+  border-radius: 10px;
+  background: white;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  transition: transform 0.2s;
+  transition: background 0.3s;
 }
-.card:hover { transform: translateY(-3px); }
 
-/* Overview widgets */
-.overview-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+body.dark .card {
+  background: #2a2a3c;
+  color: white;
 }
-.widget {
-  background: #fff;
+
+/* Chart */
+.chart-container {
+  background: white;
   padding: 20px;
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
-body.dark .widget { background: #2c3e50; }
 
-/* Forms & Tables */
-form input, form select, form button {
-  margin: 5px;
-  padding: 8px;
+body.dark .chart-container {
+  background: #2a2a3c;
 }
-table {
+
+/* Transactions */
+#transactionForm {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+#transactionList {
+  list-style: none;
+  padding: 0;
+}
+
+#transactionList li {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  background: white;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+body.dark #transactionList li {
+  background: #2a2a3c;
+}
+
+/* Budget */
+.progress-bar {
   width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
+  height: 20px;
+  background: #ddd;
+  border-radius: 10px;
+  margin: 20px 0;
 }
-th, td {
-  border: 1px solid #ccc;
-  padding: 8px;
-  text-align: center;
+
+#budgetProgress {
+  height: 100%;
+  width: 0;
+  background: #36a2eb;
+  border-radius: 10px;
+  transition: width 0.3s;
 }
