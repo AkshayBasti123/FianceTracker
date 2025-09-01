@@ -1,151 +1,167 @@
-// === Sidebar Tabs ===
-document.querySelectorAll(".sidebar nav button").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-    document.getElementById(btn.dataset.tab).classList.add("active");
-  });
+let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+let budget = parseFloat(localStorage.getItem("budget")) || 0;
+
+const ctxLine = document.getElementById("lineChart").getContext("2d");
+const ctxReport = document.getElementById("monthlyReport").getContext("2d");
+
+let lineChart = new Chart(ctxLine, {
+  type: "line",
+  data: {
+    labels: [],
+    datasets: [{
+      label: "Expenses Over Time",
+      data: [],
+      borderColor: "#36a2eb",
+      fill: false
+    }]
+  }
 });
 
-// === Transactions ===
-let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
-let budget = localStorage.getItem("budget") || null;
+let reportChart = new Chart(ctxReport, {
+  type: "bar",
+  data: {
+    labels: [],
+    datasets: [{
+      label: "Monthly Spending",
+      data: [],
+      backgroundColor: "#4bc0c0"
+    }]
+  }
+});
 
-const balanceEl = document.getElementById("balance");
-const incomeEl = document.getElementById("income");
-const expensesEl = document.getElementById("expenses");
-const transactionList = document.getElementById("transactionList");
-const budgetProgress = document.getElementById("budgetProgress");
-const budgetStatus = document.getElementById("budgetStatus");
-
-function renderTransactions() {
-  transactionList.innerHTML = "";
-  transactions.forEach((t, index) => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      ${t.desc} - $${t.amount} (${t.type}, ${t.month})
-      <button onclick="deleteTransaction(${index})">❌</button>
-    `;
-    transactionList.appendChild(li);
-  });
-  updateSummary();
+// Tabs
+function openTab(tabId) {
+  document.querySelectorAll(".tab-content").forEach(tab => tab.style.display = "none");
+  document.getElementById(tabId).style.display = "block";
 }
 
-function deleteTransaction(index) {
-  transactions.splice(index, 1);
-  saveData();
-  renderTransactions();
-}
-
+// Transactions
 document.getElementById("transactionForm").addEventListener("submit", e => {
   e.preventDefault();
-  const desc = document.getElementById("tDesc").value;
-  const amount = parseFloat(document.getElementById("tAmount").value);
-  const type = document.getElementById("tType").value;
-  const month = document.getElementById("tMonth").value;
+  const desc = document.getElementById("desc").value;
+  const amount = parseFloat(document.getElementById("amount").value);
+  const month = document.getElementById("month").value;
 
-  transactions.push({ desc, amount, type, month });
-  saveData();
-  renderTransactions();
-  e.target.reset();
-});
-
-function updateSummary() {
-  let income = transactions.filter(t => t.type === "income").reduce((a, b) => a + b.amount, 0);
-  let expense = transactions.filter(t => t.type === "expense").reduce((a, b) => a + b.amount, 0);
-  let balance = income - expense;
-
-  balanceEl.textContent = `$${balance}`;
-  incomeEl.textContent = `$${income}`;
-  expensesEl.textContent = `$${expense}`;
-
-  updateCharts();
-  updateBudget(expense);
-}
-
-function saveData() {
+  const transaction = { desc, amount, month };
+  transactions.push(transaction);
   localStorage.setItem("transactions", JSON.stringify(transactions));
-  if (budget) localStorage.setItem("budget", budget);
-}
 
-// === Budget ===
-document.getElementById("budgetForm").addEventListener("submit", e => {
-  e.preventDefault();
-  budget = parseFloat(document.getElementById("budgetAmount").value);
-  saveData();
+  document.getElementById("transactionForm").reset();
+  renderTransactions();
+  updateCharts();
   updateBudget();
 });
 
-function updateBudget(expense = null) {
-  if (!budget) {
-    budgetStatus.textContent = "No budget set";
-    budgetProgress.style.width = "0%";
-    return;
-  }
-  let spent = expense !== null ? expense : transactions.filter(t => t.type === "expense").reduce((a, b) => a + b.amount, 0);
-  let percent = Math.min((spent / budget) * 100, 100);
-  budgetProgress.style.width = percent + "%";
-  budgetStatus.textContent = `Spent $${spent} of $${budget}`;
+function renderTransactions() {
+  const list = document.getElementById("transactionList");
+  list.innerHTML = "";
+  transactions.forEach((t, index) => {
+    const li = document.createElement("li");
+    li.innerHTML = `${t.desc} - $${t.amount} (${t.month}) 
+      <button onclick="deleteTransaction(${index})">❌</button>`;
+    list.appendChild(li);
+  });
+}
+function deleteTransaction(index) {
+  transactions.splice(index, 1);
+  localStorage.setItem("transactions", JSON.stringify(transactions));
+  renderTransactions();
+  updateCharts();
+  updateBudget();
 }
 
-// === Reports Chart ===
-const reportCtx = document.getElementById("reportChart").getContext("2d");
-let reportChart = new Chart(reportCtx, {
-  type: "pie",
-  data: {
-    labels: ["Income", "Expenses"],
-    datasets: [{ data: [0, 0], backgroundColor: ["#4bc0c0", "#ff6384"] }]
-  }
+// Budget
+document.getElementById("budgetForm").addEventListener("submit", e => {
+  e.preventDefault();
+  budget = parseFloat(document.getElementById("budgetAmount").value);
+  localStorage.setItem("budget", budget);
+  updateBudget();
 });
+function updateBudget() {
+  const spent = transactions.reduce((sum, t) => sum + t.amount, 0);
+  document.getElementById("budgetValue").textContent = budget;
+  document.getElementById("spentValue").textContent = spent;
+  const percent = budget > 0 ? (spent / budget) * 100 : 0;
+  document.getElementById("progressFill").style.width = Math.min(percent, 100) + "%";
+}
 
-// === Line Chart ===
-const lineCtx = document.getElementById("lineChart").getContext("2d");
-let lineChart = new Chart(lineCtx, {
-  type: "line",
-  data: { labels: [], datasets: [{ label: "Balance", data: [], borderColor: "#36a2eb" }] }
-});
-
+// Charts
 function updateCharts() {
-  let income = transactions.filter(t => t.type === "income").reduce((a, b) => a + b.amount, 0);
-  let expense = transactions.filter(t => t.type === "expense").reduce((a, b) => a + b.amount, 0);
-
-  reportChart.data.datasets[0].data = [income, expense];
+  const months = [...new Set(transactions.map(t => t.month))];
+  const totals = months.map(m => transactions.filter(t => t.month === m).reduce((s, t) => s + t.amount, 0));
+  reportChart.data.labels = months;
+  reportChart.data.datasets[0].data = totals;
   reportChart.update();
 
-  lineChart.data.labels = transactions.map(t => t.month);
-  lineChart.data.datasets[0].data = transactions.map((t, i) => {
-    let incomeSoFar = transactions.slice(0, i + 1).filter(t => t.type === "income").reduce((a, b) => a + b.amount, 0);
-    let expenseSoFar = transactions.slice(0, i + 1).filter(t => t.type === "expense").reduce((a, b) => a + b.amount, 0);
-    return incomeSoFar - expenseSoFar;
-  });
+  lineChart.data.labels = transactions.map((_, i) => i + 1);
+  lineChart.data.datasets[0].data = transactions.map(t => t.amount);
   lineChart.update();
+
+  document.getElementById("totalBalance").textContent = "$" + (budget - transactions.reduce((s, t) => s + t.amount, 0));
+  document.getElementById("totalTransactions").textContent = transactions.length;
 }
 
-// === Settings ===
-document.getElementById("logout").addEventListener("click", () => {
+// Finance News
+async function loadNews() {
+  const res = await fetch(`https://newsapi.org/v2/top-headlines?category=business&apiKey=${CONFIG.NEWS_API_KEY}`);
+  const data = await res.json();
+  const newsFeed = document.getElementById("newsFeed");
+  newsFeed.innerHTML = data.articles.slice(0, 5).map(a =>
+    `<div><a href="${a.url}" target="_blank">${a.title}</a></div>`
+  ).join("");
+}
+loadNews();
+
+// Markets
+async function loadMarkets() {
+  // USD to EUR
+  const fx = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=EUR");
+  const fxData = await fx.json();
+  document.getElementById("usdEur").textContent = fxData.rates.EUR.toFixed(2);
+
+  // Apple Stock
+  const stock = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=${CONFIG.ALPHA_VANTAGE_KEY}`);
+  const stockData = await stock.json();
+  document.getElementById("appleStock").textContent = "$" + parseFloat(stockData["Global Quote"]["05. price"]).toFixed(2);
+
+  // Bitcoin
+  const btc = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd");
+  const btcData = await btc.json();
+  document.getElementById("btcPrice").textContent = "$" + btcData.bitcoin.usd.toLocaleString();
+}
+loadMarkets();
+
+// AI Assistant
+async function askAssistant() {
+  const q = document.getElementById("aiQuestion").value;
+  const res = await fetch("https://api-inference.huggingface.co/models/facebook/bart-large-cnn", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${CONFIG.HF_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ inputs: q })
+  });
+  const data = await res.json();
+  document.getElementById("aiResponse").textContent = data[0]?.summary_text || "No response";
+}
+
+// Settings
+function toggleDarkMode() {
+  document.body.classList.toggle("dark-mode");
+}
+function logout() {
+  localStorage.removeItem("user");
   window.location.href = "index.html";
-});
-
-document.getElementById("resetData").addEventListener("click", () => {
+}
+function confirmReset() {
   if (confirm("Are you sure you want to delete all data?")) {
-    localStorage.removeItem("transactions");
-    localStorage.removeItem("budget");
-    transactions = [];
-    budget = null;
-    renderTransactions();
+    localStorage.clear();
+    location.reload();
   }
-});
-
-// Dark Mode
-document.getElementById("toggleDark").addEventListener("click", () => {
-  document.body.classList.toggle("dark");
-  localStorage.setItem("darkMode", document.body.classList.contains("dark"));
-});
-
-// Load Dark Mode preference
-if (localStorage.getItem("darkMode") === "true") {
-  document.body.classList.add("dark");
 }
 
-// === Init ===
+// Init
 renderTransactions();
+updateCharts();
 updateBudget();
