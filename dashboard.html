@@ -14,6 +14,7 @@
       <button class="tab-button" data-tab="transactions">💳 Transactions</button>
       <button class="tab-button" data-tab="budget">📊 Budget</button>
       <button class="tab-button" data-tab="reports">📑 Reports</button>
+      <button id="darkModeToggle">🌙 Dark Mode</button>
       <button id="logoutBtn">🚪 Logout</button>
       <button id="resetBtn">♻️ Reset Data</button>
     </div>
@@ -29,7 +30,16 @@
         <div class="card">Expenses: <span id="expenses">$0</span></div>
         <div class="card">Savings: <span id="savings">$0</span></div>
       </div>
-      <canvas id="lineChart"></canvas>
+      <div class="overview-grid">
+        <div class="widget">
+          <h3>Expense Breakdown</h3>
+          <canvas id="pieChart"></canvas>
+        </div>
+        <div class="widget">
+          <h3>Monthly Trend</h3>
+          <canvas id="lineChart"></canvas>
+        </div>
+      </div>
     </div>
 
     <!-- Transactions -->
@@ -55,7 +65,7 @@
       <table>
         <thead>
           <tr>
-            <th>Description</th><th>Amount</th><th>Type</th><th>Category</th><th>Month</th>
+            <th>Description</th><th>Amount</th><th>Type</th><th>Category</th><th>Month</th><th>Action</th>
           </tr>
         </thead>
         <tbody id="transactionList"></tbody>
