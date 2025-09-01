@@ -6,24 +6,31 @@
   <title>Finance Tracker - Dashboard</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
   <div class="dashboard">
-    <!-- Sidebar -->
     <aside class="sidebar">
-      <h2 class="logo">💰 FinanceTracker</h2>
+      <h2 class="logo">💰</h2>
       <nav>
-        <ul>
-          <li class="active" data-tab="overview">Overview</li>
-          <li data-tab="transactions">Transactions</li>
-          <li data-tab="budget">Budget</li>
-          <li data-tab="reports">Reports</li>
-          <li data-tab="settings">Settings</li>
-        </ul>
+        <button class="tab-btn active" data-tab="overview">
+          <i data-lucide="home"></i><span>Overview</span>
+        </button>
+        <button class="tab-btn" data-tab="transactions">
+          <i data-lucide="list"></i><span>Transactions</span>
+        </button>
+        <button class="tab-btn" data-tab="budget">
+          <i data-lucide="wallet"></i><span>Budget</span>
+        </button>
+        <button class="tab-btn" data-tab="reports">
+          <i data-lucide="bar-chart-2"></i><span>Reports</span>
+        </button>
+        <button class="tab-btn" data-tab="settings">
+          <i data-lucide="settings"></i><span>Settings</span>
+        </button>
       </nav>
     </aside>
 
-    <!-- Main Content -->
     <main class="main">
       <header class="topbar">
         <h1 id="tab-title">Overview</h1>
@@ -33,21 +40,20 @@
         </div>
       </header>
 
-      <!-- Overview Tab -->
       <section id="overview" class="tab-content active">
-        <div class="cards">
-          <div class="card">Total Balance <h2 id="balance">$0</h2></div>
-          <div class="card">Income <h2 id="income">$0</h2></div>
-          <div class="card">Expenses <h2 id="expenses">$0</h2></div>
-          <div class="card">Savings <h2 id="savings">$0</h2></div>
-        </div>
-        <div class="charts">
-          <canvas id="expenseChart"></canvas>
-          <canvas id="incomeExpenseChart"></canvas>
+        <div class="overview-grid">
+          <div class="cards">
+            <div class="card">Total Balance <h2 id="balance">$0</h2></div>
+            <div class="card">Income <h2 id="income">$0</h2></div>
+            <div class="card">Expenses <h2 id="expenses">$0</h2></div>
+            <div class="card">Savings <h2 id="savings">$0</h2></div>
+          </div>
+          <div class="charts">
+            <canvas id="expenseChart"></canvas>
+            <canvas id="incomeExpenseChart"></canvas>
+          </div>
         </div>
       </section>
-
-      <!-- Transactions Tab -->
       <section id="transactions" class="tab-content">
         <h2>Manage Transactions</h2>
         <form id="add-transaction">
@@ -62,7 +68,6 @@
         <ul id="transaction-list"></ul>
       </section>
 
-      <!-- Budget Tab -->
       <section id="budget" class="tab-content">
         <h2>Budget Tracking</h2>
         <form id="set-budget-form">
@@ -74,13 +79,11 @@
         <progress id="budget-progress" value="0" max="100"></progress>
       </section>
 
-      <!-- Reports Tab -->
       <section id="reports" class="tab-content">
         <h2>Reports</h2>
         <p id="report-summary">Add transactions to see spending summary.</p>
       </section>
 
-      <!-- Settings Tab -->
       <section id="settings" class="tab-content">
         <h2>Settings</h2>
         <label>
@@ -91,5 +94,6 @@
     </main>
   </div>
   <script src="dashboard.js"></script>
+  <script>lucide.createIcons();</script>
 </body>
 </html>
