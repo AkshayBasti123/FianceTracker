@@ -1,381 +1,216 @@
-/* ========= Helpers ========= */
-const $ = (id)=>document.getElementById(id);
-const els = {
-  balance: $("balance"), income: $("income"), expenses: $("expenses"),
-  txList: $("transactionList"), budgetProgress: $("budgetProgress"), budgetStatus: $("budgetStatus"),
-  miniBudgetProgress: $("miniBudgetProgress"), miniBudgetLabel: $("miniBudgetLabel"),
-};
-function save(){ localStorage.setItem("transactions", JSON.stringify(transactions)); if (budget!=null) localStorage.setItem("budget", String(budget)); }
-function fmt(n){ return "$" + Number(n||0).toFixed(2); }
-async function fetchJSON(url, opts={}, timeout=15000){
-  const ctl = new AbortController();
-  const t = setTimeout(()=>ctl.abort(), timeout);
-  try{
-    const res = await fetch(url, { ...opts, signal: ctl.signal });
-    if (!res.ok) throw new Error(res.status + " " + res.statusText);
-    return await res.json();
-  } finally { clearTimeout(t); }
-}
+// ==== Tabs ====
+document.querySelectorAll(".sidebar button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+    document.getElementById(btn.dataset.tab).classList.add("active");
+  });
+});
 
-/* ========= State ========= */
+// ==== Transactions ====
 let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
-let budget = localStorage.getItem("budget") ? parseFloat(localStorage.getItem("budget")) : null;
+let budget = parseFloat(localStorage.getItem("budget")) || 0;
 
-/* ========= Tabs (sidebar buttons) ========= */
-document.querySelectorAll(".sidebar nav button").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-    $(btn.dataset.tab).classList.add("active");
-  });
-});
+const transactionForm = document.getElementById("transactionForm");
+const transactionList = document.getElementById("transactionList");
+const balanceDisplay = document.getElementById("balanceDisplay");
+const transactionCount = document.getElementById("transactionCount");
 
-/* ========= Dark Mode ========= */
-const toggleDarkBtn = $("toggleDark");
-if (toggleDarkBtn){
-  toggleDarkBtn.addEventListener("click", ()=>{
-    document.body.classList.toggle("dark");
-    localStorage.setItem("darkMode", document.body.classList.contains("dark"));
+// Render transactions
+function renderTransactions() {
+  transactionList.innerHTML = "";
+  transactions.forEach((t, i) => {
+    const li = document.createElement("li");
+    li.textContent = `${t.month} - ${t.desc}: $${t.amount}`;
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "❌";
+    delBtn.onclick = () => {
+      transactions.splice(i, 1);
+      saveData();
+    };
+    li.appendChild(delBtn);
+    transactionList.appendChild(li);
   });
+  updateOverview();
+  updateBudget();
 }
-if (localStorage.getItem("darkMode")==="true"){ document.body.classList.add("dark"); }
 
-/* ========= Account ========= */
-$("logout").addEventListener("click", ()=>{
-  localStorage.removeItem("currentUser");
-  window.location.href = "index.html";
+// Save to storage
+function saveData() {
+  localStorage.setItem("transactions", JSON.stringify(transactions));
+  localStorage.setItem("budget", budget);
+  renderTransactions();
+}
+
+// Add new transaction
+transactionForm?.addEventListener("submit", e => {
+  e.preventDefault();
+  const desc = document.getElementById("desc").value;
+  const amount = parseFloat(document.getElementById("amount").value);
+  const month = document.getElementById("month").value;
+  transactions.push({ desc, amount, month });
+  transactionForm.reset();
+  saveData();
 });
-$("resetData").addEventListener("click", ()=>{
-  if (confirm("Are you sure you want to delete ALL data?")){
-    localStorage.removeItem("transactions");
-    localStorage.removeItem("budget");
-    transactions = [];
-    budget = null;
-    renderTransactions(); updateAll();
+
+// ==== Overview Trend Chart ====
+const ctx = document.getElementById("trendChart");
+let trendChart = new Chart(ctx, {
+  type: "line",
+  data: {
+    labels: [],
+    datasets: [{
+      label: "Expenses",
+      data: [],
+      borderColor: "#36a2eb",
+      fill: false
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: { y: { beginAtZero: true } }
   }
 });
 
-/* ========= Transactions ========= */
-$("transactionForm").addEventListener("submit", async (e)=>{
-  e.preventDefault();
-  const desc = $("tDesc").value.trim();
-  const amount = parseFloat($("tAmount").value);
-  const type = $("tType").value;
-  const month = $("tMonth").value;
-  let category = $("tCategory").value;
+function updateOverview() {
+  const balance = transactions.reduce((acc, t) => acc + t.amount, 0);
+  balanceDisplay.textContent = `$${balance.toFixed(2)}`;
+  transactionCount.textContent = transactions.length;
 
-  if (!category){
-    try { category = await aiCategorize(desc); } catch { category = ruleCategorize(desc); }
-    if (type === "income" && category !== "Income") category = "Income";
-  }
-
-  transactions.push({ desc, amount, type, category, month });
-  save();
-  e.target.reset();
-  renderTransactions(); updateAll();
-});
-
-function renderTransactions(){
-  els.txList.innerHTML = "";
-  transactions.forEach((t,i)=>{
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${t.desc}</td>
-      <td>${fmt(t.amount)}</td>
-      <td>${t.type}</td>
-      <td>${t.category}</td>
-      <td>${t.month}</td>
-      <td><button class="danger" data-del="${i}">❌</button></td>
-    `;
-    els.txList.appendChild(tr);
+  // Trend data: group by month
+  const monthTotals = {};
+  transactions.forEach(t => {
+    monthTotals[t.month] = (monthTotals[t.month] || 0) + t.amount;
   });
-  els.txList.querySelectorAll("[data-del]").forEach(btn=>{
-    btn.addEventListener("click",(ev)=>{
-      const idx = parseInt(ev.currentTarget.dataset.del,10);
-      transactions.splice(idx,1); save(); renderTransactions(); updateAll();
-    });
-  });
+  const labels = Object.keys(monthTotals).slice(-12);
+  const data = Object.values(monthTotals).slice(-12);
+
+  trendChart.data.labels = labels;
+  trendChart.data.datasets[0].data = data;
+  trendChart.update();
 }
 
-/* ========= Budget ========= */
-$("budgetForm").addEventListener("submit",(e)=>{
+// ==== Budget ====
+const budgetForm = document.getElementById("budgetForm");
+const budgetBar = document.getElementById("budgetBar");
+const budgetStatus = document.getElementById("budgetStatus");
+
+budgetForm?.addEventListener("submit", e => {
   e.preventDefault();
-  budget = parseFloat($("budgetAmount").value);
-  save(); updateBudget();
+  budget = parseFloat(document.getElementById("budgetAmount").value);
+  saveData();
 });
-function updateBudget(){
-  const spent = transactions.filter(t=>t.type==="expense").reduce((a,b)=>a+b.amount,0);
-  if (!budget || budget<=0){
-    $("budgetStatus").textContent = "No budget set";
-    $("budgetProgress").style.width = "0%";
-    els.miniBudgetProgress.style.width = "0%";
-    els.miniBudgetLabel.textContent = "No budget set";
+
+function updateBudget() {
+  if (!budget) {
+    budgetStatus.textContent = "No budget set.";
+    budgetBar.style.width = "0%";
     return;
   }
-  const pct = Math.min(100, (spent/budget)*100);
-  $("budgetStatus").textContent = `Spent ${fmt(spent)} of ${fmt(budget)} (${pct.toFixed(0)}%)`;
-  $("budgetProgress").style.width = pct + "%";
-  els.miniBudgetProgress.style.width = pct + "%";
-  els.miniBudgetLabel.textContent = `${pct.toFixed(0)}% used`;
+  const spent = transactions.reduce((acc, t) => acc + t.amount, 0);
+  const percent = Math.min((spent / budget) * 100, 100);
+  budgetBar.style.width = percent + "%";
+  budgetStatus.textContent = `Spent $${spent.toFixed(2)} of $${budget}`;
 }
 
-/* ========= Overview & Reports ========= */
-let lineChart, pieChart, reportPie;
-function updateOverview(){
-  const income  = transactions.filter(t=>t.type==="income").reduce((a,b)=>a+b.amount,0);
-  const expense = transactions.filter(t=>t.type==="expense").reduce((a,b)=>a+b.amount,0);
-  const balance = income - expense;
-  els.balance.textContent  = fmt(balance);
-  $("income").textContent   = fmt(income);
-  $("expenses").textContent = fmt(expense);
-}
-function updateCharts(){
-  const monthly = {};
-  transactions.forEach(t=>{
-    if (!monthly[t.month]) monthly[t.month]={income:0,expense:0};
-    monthly[t.month][t.type]+=t.amount;
-  });
-  const labels = Object.keys(monthly).sort();
-  const incomeData  = labels.map(m=>monthly[m].income);
-  const expenseData = labels.map(m=>monthly[m].expense);
-
-  if (lineChart) lineChart.destroy();
-  lineChart = new Chart($("lineChart"), {
-    type:"line",
-    data:{ labels, datasets:[
-      {label:"Income", data:incomeData, borderColor:"#10b981", fill:false, tension:.2},
-      {label:"Expenses", data:expenseData, borderColor:"#ef4444", fill:false, tension:.2},
-    ]},
-    options:{ maintainAspectRatio:false, plugins:{legend:{display:true}} }
-  });
-
-  const byCat = {};
-  transactions.filter(t=>t.type==="expense").forEach(t=>{
-    byCat[t.category]=(byCat[t.category]||0)+t.amount;
-  });
-  if (pieChart) pieChart.destroy();
-  pieChart = new Chart($("pieChart"), {
-    type:"pie",
-    data:{ labels:Object.keys(byCat), datasets:[{ data:Object.values(byCat) }] },
-    options:{ plugins:{legend:{position:"bottom"}} }
-  });
-
-  if (reportPie) reportPie.destroy();
-  reportPie = new Chart($("reportPie"), {
-    type:"doughnut",
-    data:{ labels:Object.keys(byCat), datasets:[{ data:Object.values(byCat) }] },
-    options:{ plugins:{legend:{position:"bottom"}} }
-  });
-}
-function updateReports(){
-  const income  = transactions.filter(t=>t.type==="income").reduce((a,b)=>a+b.amount,0);
-  const expense = transactions.filter(t=>t.type==="expense").reduce((a,b)=>a+b.amount,0);
-  const savingsRate = income>0 ? ((income-expense)/income*100).toFixed(1) : 0;
-
-  const catTotals={};
-  transactions.filter(t=>t.type==="expense").forEach(t=>{ catTotals[t.category]=(catTotals[t.category]||0)+t.amount; });
-  const topCat = Object.keys(catTotals).length
-    ? Object.entries(catTotals).sort((a,b)=>b[1]-a[1])[0][0]
-    : "N/A";
-
-  $("reportIncome").textContent   = fmt(income);
-  $("reportExpenses").textContent = fmt(expense);
-  $("reportSavings").textContent  = `${savingsRate}%`;
-  $("reportTopCat").textContent   = topCat;
-}
-function updateAll(){ updateOverview(); updateBudget(); updateCharts(); updateReports(); }
-
-/* ========= Currency (open.er-api.com) + Converter ========= */
-const ISO_CURRENCIES = ["USD","EUR","GBP","CAD","AUD","JPY","INR","CHF","CNY","SEK","NZD","MXN"];
-let fxCache = null;
-
-function populateFxSelects(){
-  const from = $("fxFrom"), to = $("fxTo");
-  from.innerHTML = ""; to.innerHTML = "";
-  ISO_CURRENCIES.forEach(c=>{
-    const o1=document.createElement("option"); o1.value=o1.textContent=c; from.appendChild(o1);
-    const o2=document.createElement("option"); o2.value=o2.textContent=c; to.appendChild(o2);
-  });
-  from.value="USD"; to.value="EUR";
-}
-populateFxSelects();
-
-async function getFxRates(base="USD"){
-  try{
-    const data = await fetchJSON(`https://open.er-api.com/v6/latest/${base}`);
-    if (data?.result==="success") return data.rates;
-    throw new Error("FX failed");
-  }catch{
-    // offline fallback: identity rates
-    const rates = {}; ISO_CURRENCIES.forEach(c=>rates[c]= c===base ? 1 : NaN); return rates;
-  }
-}
-$("fxForm").addEventListener("submit", async (e)=>{
-  e.preventDefault();
-  const amt = parseFloat($("fxAmount").value)||0;
-  const from = $("fxFrom").value, to = $("fxTo").value;
-  fxCache = await getFxRates(from);
-  const rate = fxCache[to];
-  $("fxResult").textContent = isFinite(rate) ? `${amt} ${from} ≈ ${(amt*rate).toFixed(2)} ${to}` : "Conversion unavailable right now.";
+// ==== Reports ====
+const reportCtx = document.getElementById("reportChart");
+let reportChart = new Chart(reportCtx, {
+  type: "bar",
+  data: {
+    labels: [],
+    datasets: [{ label: "Expenses", data: [], backgroundColor: "#4bc0c0" }]
+  },
+  options: { responsive: true, maintainAspectRatio: false }
 });
 
-/* ========= Markets ========= */
-// Crypto via CoinGecko
-async function loadCrypto(){
-  try{
-    const data = await fetchJSON("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd");
-    $("btcPrice").textContent = "$" + data.bitcoin.usd.toLocaleString();
-    $("ethPrice").textContent = "$" + data.ethereum.usd.toLocaleString();
-  }catch{ $("btcPrice").textContent="—"; $("ethPrice").textContent="—"; }
+function updateReports() {
+  const monthTotals = {};
+  transactions.forEach(t => {
+    monthTotals[t.month] = (monthTotals[t.month] || 0) + t.amount;
+  });
+  reportChart.data.labels = Object.keys(monthTotals);
+  reportChart.data.datasets[0].data = Object.values(monthTotals);
+  reportChart.update();
 }
-// Stock via Alpha Vantage
-async function loadStock(sym="AAPL"){
-  if (!CONFIG.ALPHA_VANTAGE_KEY){ $("stockPrice").textContent="Set API key"; return; }
-  try{
-    const data = await fetchJSON(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(sym)}&apikey=${CONFIG.ALPHA_VANTAGE_KEY}`);
-    const q = data["Global Quote"];
-    const price = q ? parseFloat(q["05. price"]) : NaN;
-    $("stockPrice").textContent = isFinite(price) ? "$"+price.toFixed(2) : "—";
-    $("stockSymbolLabel").textContent = sym.toUpperCase();
-  }catch{ $("stockPrice").textContent="—"; }
-}
-$("stockForm").addEventListener("submit",(e)=>{
-  e.preventDefault();
-  const sym = $("stockSymbol").value.trim() || "AAPL";
-  loadStock(sym);
-});
 
-/* ========= News (Financial Modeling Prep) ========= */
-async function loadNews(query="finance"){
-  const list = $("newsList");
-  list.innerHTML = "";
-  try{
-    // FMP doesn't support arbitrary queries in stock_news; we'll filter on the client
-    const url = `https://financialmodelingprep.com/api/v3/stock_news?limit=50&apikey=${CONFIG.FMP_API_KEY || "demo"}`;
-    const data = await fetchJSON(url);
-    const items = (data || []).filter(a=>{
-      if (!query) return true;
-      const s = (a.title+" "+(a.text||"") ).toLowerCase();
-      return s.includes(query.toLowerCase());
-    }).slice(0,12);
-
-    if (!items.length){ list.innerHTML = "<p class='muted'>No stories found.</p>"; return; }
-
-    items.forEach(a=>{
-      const card = document.createElement("div");
-      card.className = "news-card";
-      card.innerHTML = `
-        <img src="${a.image || 'https://via.placeholder.com/80'}" alt="" />
-        <div>
-          <a href="${a.url}" target="_blank"><strong>${a.title || "Untitled"}</strong></a>
-          <p class="muted">${a.site || "Source"} · ${new Date(a.publishedDate).toLocaleString()}</p>
-        </div>`;
-      list.appendChild(card);
+// ==== News (using GNews API instead of NewsAPI) ====
+async function loadNews() {
+  try {
+    const res = await fetch(`https://gnews.io/api/v4/top-headlines?token=${CONFIG.GNEWS_KEY}&lang=en&topic=business`);
+    const data = await res.json();
+    const newsList = document.getElementById("newsList");
+    newsList.innerHTML = "";
+    data.articles.slice(0, 5).forEach(n => {
+      const li = document.createElement("li");
+      li.innerHTML = `<a href="${n.url}" target="_blank">${n.title}</a>`;
+      newsList.appendChild(li);
     });
-  }catch(err){
-    list.innerHTML = "<p class='muted'>Failed to load news.</p>";
+  } catch (e) {
+    console.error("News load failed", e);
   }
 }
-$("newsForm").addEventListener("submit",(e)=>{
-  e.preventDefault();
-  const q = $("newsQuery").value.trim();
-  loadNews(q || "finance");
-});
 
-/* ========= AI: Categorizer (HF) with local fallback ========= */
-function ruleCategorize(d){
-  const s=d.toLowerCase();
-  if (/(salary|paycheck|pay|income|refund)/.test(s)) return "Income";
-  if (/(uber|bus|train|gas|fuel|lyft|taxi)/.test(s)) return "Transport";
-  if (/(netflix|movie|game|spotify|cinema|concert)/.test(s)) return "Entertainment";
-  if (/(rent|electric|water|internet|bill)/.test(s)) return "Bills";
-  if (/(amazon|mall|store|clothes|shoe|buy)/.test(s)) return "Shopping";
-  if (/(food|pizza|burger|restaurant|grocer|coffee|cafe)/.test(s)) return "Food";
-  return "Other";
-}
-async function aiCategorize(text){
-  if (!CONFIG.HF_API_KEY) throw new Error("No HF key");
-  const labels = ["Food","Transport","Entertainment","Bills","Shopping","Other","Income"];
-  const res = await fetch("https://api-inference.huggingface.co/models/facebook/bart-large-mnli",{
-    method:"POST",
-    headers:{ "Authorization":`Bearer ${CONFIG.HF_API_KEY}`,"Content-Type":"application/json"},
-    body: JSON.stringify({ inputs: text, parameters:{ candidate_labels: labels.join(", "), multi_label:false }})
-  });
-  if (res.status===401) throw new Error("HF unauthorized");
-  const data = await res.json();
-  if (data?.labels?.length) return data.labels[0]==="Income"?"Income":data.labels[0];
-  throw new Error("HF classify failed");
+// ==== Markets ====
+async function loadMarkets() {
+  try {
+    // Currency
+    const fxRes = await fetch("https://api.exchangerate.host/latest?base=USD");
+    const fxData = await fxRes.json();
+    document.getElementById("usdToEur").textContent = fxData.rates.EUR.toFixed(2);
+
+    // BTC
+    const btcRes = await fetch("https://api.coindesk.com/v1/bpi/currentprice/BTC.json");
+    const btcData = await btcRes.json();
+    document.getElementById("btcPrice").textContent = `$${btcData.bpi.USD.rate}`;
+
+    // AAPL stock
+    const stockRes = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=${CONFIG.ALPHA_VANTAGE_KEY}`);
+    const stockData = await stockRes.json();
+    document.getElementById("aaplPrice").textContent = `$${parseFloat(stockData["Global Quote"]["05. price"]).toFixed(2)}`;
+  } catch (e) {
+    console.error("Market load failed", e);
+  }
 }
 
-/* ========= AI Assistant (HF) with local fallback ========= */
-$("aiAsk").addEventListener("click", async ()=>{
-  const q = $("aiInput").value.trim();
-  const out = $("aiAnswer");
-  if (!q){ out.textContent="Ask me something about your finances."; return; }
-  out.textContent = "Thinking...";
-  try{
-    const answer = await aiAssistantAnswer(q);
-    out.textContent = answer;
-  }catch{
-    out.textContent = localAssistant(q);
+// ==== AI Assistant ====
+document.getElementById("askAI")?.addEventListener("click", async () => {
+  const q = document.getElementById("aiQuestion").value;
+  const ans = document.getElementById("aiAnswer");
+  ans.textContent = "Thinking...";
+  try {
+    const res = await fetch("https://api-inference.huggingface.co/models/facebook/bart-large-cnn", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${CONFIG.HF_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ inputs: q })
+    });
+    const data = await res.json();
+    ans.textContent = data[0]?.summary_text || "No answer available.";
+  } catch {
+    ans.textContent = "AI request failed.";
   }
 });
-function localAssistant(question){
-  // Simple on-device “AI” using your data
-  const byCat={}; const byMonth={};
-  transactions.forEach(t=>{
-    if (t.type==="expense"){ byCat[t.category]=(byCat[t.category]||0)+t.amount; }
-    byMonth[t.month]=(byMonth[t.month]||0)+(t.type==="expense"?t.amount:-t.amount);
-  });
-  const topCat = Object.keys(byCat).length ? Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0][0] : "N/A";
-  const totalIncome = transactions.filter(t=>t.type==="income").reduce((a,b)=>a+b.amount,0);
-  const totalExpense= transactions.filter(t=>t.type==="expense").reduce((a,b)=>a+b.amount,0);
-  const balance = totalIncome-totalExpense;
 
-  return [
-    "AI service unreachable, here’s a quick local analysis:",
-    `• Balance: ${fmt(balance)}  • Income: ${fmt(totalIncome)}  • Expenses: ${fmt(totalExpense)}`,
-    `• Top expense category: ${topCat}`,
-    `• Monthly net: ${Object.entries(byMonth).map(([m,v])=>`${m||"—"}=${fmt(v)}`).join(", ")}`
-  ].join("\n");
-}
-async function aiAssistantAnswer(question){
-  if (!CONFIG.HF_API_KEY) throw new Error("No HF key");
-  const income  = transactions.filter(t=>t.type==="income").reduce((a,b)=>a+b.amount,0).toFixed(2);
-  const expense = transactions.filter(t=>t.type==="expense").reduce((a,b)=>a+b.amount,0).toFixed(2);
-  const byCat = {};
-  transactions.filter(t=>t.type==="expense").forEach(t=>{ byCat[t.category]=(byCat[t.category]||0)+t.amount; });
-  const context = `
-You are a helpful personal finance assistant. Use the user's ledger to answer briefly with numbers and tips.
-Ledger summary:
-- Total income: $${income}
-- Total expenses: $${expense}
-- By category: ${JSON.stringify(byCat)}
-- Monthly breakdown: ${JSON.stringify(groupByMonth(transactions))}
-Question: ${question}
-  `.trim();
+// ==== Settings ====
+document.getElementById("logout")?.addEventListener("click", () => {
+  localStorage.removeItem("user");
+  window.location.href = "index.html";
+});
+document.getElementById("clearData")?.addEventListener("click", () => {
+  if (confirm("Are you sure you want to delete all data?")) {
+    localStorage.clear();
+    location.reload();
+  }
+});
+document.getElementById("toggleDark")?.addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+});
 
-  const res = await fetch("https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta",{
-    method:"POST",
-    headers:{ "Authorization":`Bearer ${CONFIG.HF_API_KEY}`,"Content-Type":"application/json"},
-    body: JSON.stringify({ inputs: context, parameters:{ max_new_tokens: 220, temperature: 0.4 } })
-  });
-  if (res.status===401) throw new Error("HF unauthorized");
-  const data = await res.json();
-  const text = Array.isArray(data) ? data[0]?.generated_text : data.generated_text || "";
-  return text ? text.split("Question:").pop().trim() : "No answer.";
-}
-function groupByMonth(tx){
-  const out={}; tx.forEach(t=>{ if (!out[t.month]) out[t.month]={income:0,expense:0}; out[t.month][t.type]+=t.amount; }); return out;
-}
-
-/* ========= Init ========= */
-function guardLoggedIn(){
-  // Optional gate: if you want to require login
-  // const u = JSON.parse(localStorage.getItem("currentUser")||"null");
-  // if (!u) window.location.href="index.html";
-}
-guardLoggedIn();
-
-renderTransactions(); updateAll();
-loadCrypto(); loadStock("AAPL"); loadNews(); // defaults
-setInterval(loadCrypto, 60_000);
+// ==== Init ====
+renderTransactions();
+updateReports();
+loadNews();
+loadMarkets();
