@@ -85,3 +85,12 @@ body.dark .ticker{background:rgba(255,255,255,.06)}
   .news-grid{grid-template-columns:1fr}
   .settings-grid{grid-template-columns:1fr}
 }
+
+/* Make converter inline */
+#markets .widget input,
+#markets .widget select,
+#markets .widget button {
+  display: inline-block;
+  margin: 5px;
+  vertical-align: middle;
+}
