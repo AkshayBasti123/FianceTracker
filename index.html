@@ -1,1 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Dashboard - Login</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #36a2eb, #4bc0c0);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .auth-container {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      width: 350px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+      text-align: center;
+      animation: fadeIn 0.8s ease-in-out;
+    }
+    input {
+      width: 90%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      width: 95%;
+      padding: 12px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #36a2eb;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #2a81b8;
+    }
+    .strength-bar {
+      width: 90%;
+      height: 8px;
+      background: #ddd;
+      border-radius: 5px;
+      margin: 5px auto;
+    }
+    #strength {
+      height: 100%;
+      width: 0%;
+      border-radius: 5px;
+    }
+    a {
+      color: #36a2eb;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(-20px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <h1>💸 Finance Dashboard</h1>
 
+    <!-- Login Form -->
+    <div id="loginForm">
+      <h2>Login</h2>
+      <input type="email" id="loginEmail" placeholder="Email" required>
+      <input type="password" id="loginPassword" placeholder="Password" required>
+      <button onclick="login()">Login</button>
+      <p>Don't have an account? <a onclick="showSignup()">Sign up</a></p>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signupForm" style="display:none;">
+      <h2>Sign Up</h2>
+      <input type="text" id="signupName" placeholder="Full Name" required>
+      <input type="email" id="signupEmail" placeholder="Email" required>
+      <input type="password" id="signupPassword" placeholder="Password" required oninput="checkPasswordStrength()">
+      <div class="strength-bar"><div id="strength"></div></div>
+      <input type="password" id="signupConfirm" placeholder="Confirm Password" required>
+      <button onclick="signup()">Sign Up</button>
+      <p>Already have an account? <a onclick="showLogin()">Login</a></p>
+    </div>
+  </div>
+
+  <script>
+    function showSignup() {
+      document.getElementById("loginForm").style.display = "none";
+      document.getElementById("signupForm").style.display = "block";
+    }
+
+    function showLogin() {
+      document.getElementById("signupForm").style.display = "none";
+      document.getElementById("loginForm").style.display = "block";
+    }
+
+    // Password Strength Meter
+    function checkPasswordStrength() {
+      const password = document.getElementById("signupPassword").value;
+      const strengthBar = document.getElementById("strength");
+      let strength = 0;
+
+      if (password.length >= 8) strength++;
+      if (/[A-Z]/.test(password)) strength++;
+      if (/[0-9]/.test(password)) strength++;
+      if (/[@$!%*?&]/.test(password)) strength++;
+
+      switch (strength) {
+        case 0:
+          strengthBar.style.width = "0%";
+          break;
+        case 1:
+          strengthBar.style.width = "25%";
+          strengthBar.style.background = "red";
+          break;
+        case 2:
+          strengthBar.style.width = "50%";
+          strengthBar.style.background = "orange";
+          break;
+        case 3:
+          strengthBar.style.width = "75%";
+          strengthBar.style.background = "yellowgreen";
+          break;
+        case 4:
+          strengthBar.style.width = "100%";
+          strengthBar.style.background = "green";
+          break;
+      }
+    }
+
+    // Signup Logic
+    function signup() {
+      const name = document.getElementById("signupName").value;
+      const email = document.getElementById("signupEmail").value;
+      const password = document.getElementById("signupPassword").value;
+      const confirm = document.getElementById("signupConfirm").value;
+
+      if (password !== confirm) {
+        alert("Passwords do not match!");
+        return;
+      }
+
+      // Save to localStorage (demo only, not secure in real apps)
+      localStorage.setItem("user", JSON.stringify({ name, email, password }));
+      alert("Signup successful! Please login.");
+      showLogin();
+    }
+
+    // Login Logic
+    function login() {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+      const user = JSON.parse(localStorage.getItem("user"));
+
+      if (user && user.email === email && user.password === password) {
+        alert("Login successful!");
+        window.location.href = "dashboard.html"; // redirect after login
+      } else {
+        alert("Invalid email or password");
+      }
+    }
+  </script>
+</body>
+</html>
