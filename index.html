@@ -72,7 +72,6 @@
       bar.style.background = colors[strength];
     }
 
-    // Users are stored as an array in localStorage: "users"
     function getUsers(){ return JSON.parse(localStorage.getItem("users")) || []; }
     function setUsers(arr){ localStorage.setItem("users", JSON.stringify(arr)); }
 
