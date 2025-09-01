@@ -8,90 +8,109 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <div class="dashboard">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="logo">
-        <img src="LOGOCOMPANY.png" alt="Company Logo">
-      </div>
-      <nav>
-        <button data-tab="overview">📊 Overview</button>
-        <button data-tab="transactions">💵 Transactions</button>
-        <button data-tab="budget">🎯 Budget</button>
-        <button data-tab="reports">📑 Reports</button>
-        <button data-tab="settings">⚙️ Settings</button>
-      </nav>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="content">
-      <!-- Overview Tab -->
-      <section id="overview" class="tab active">
-        <h1>Overview</h1>
-        <div class="cards">
-          <div class="card">
-            <h2>Total Balance</h2>
-            <p id="balance">$0</p>
-          </div>
-          <div class="card">
-            <h2>Total Income</h2>
-            <p id="income">$0</p>
-          </div>
-          <div class="card">
-            <h2>Total Expenses</h2>
-            <p id="expenses">$0</p>
-          </div>
-        </div>
-        <div class="chart-container">
-          <canvas id="lineChart"></canvas>
-        </div>
-      </section>
-
-      <!-- Transactions Tab -->
-      <section id="transactions" class="tab">
-        <h1>Transactions</h1>
-        <form id="transactionForm">
-          <input type="text" id="tDesc" placeholder="Description" required>
-          <input type="number" id="tAmount" placeholder="Amount" required>
-          <select id="tType">
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-          </select>
-          <input type="month" id="tMonth" required>
-          <button type="submit">Add Transaction</button>
-        </form>
-        <ul id="transactionList"></ul>
-      </section>
-
-      <!-- Budget Tab -->
-      <section id="budget" class="tab">
-        <h1>Budget</h1>
-        <form id="budgetForm">
-          <input type="number" id="budgetAmount" placeholder="Monthly Budget" required>
-          <button type="submit">Set Budget</button>
-        </form>
-        <div class="progress-bar">
-          <div id="budgetProgress"></div>
-        </div>
-        <p id="budgetStatus">No budget set</p>
-      </section>
-
-      <!-- Reports Tab -->
-      <section id="reports" class="tab">
-        <h1>Reports</h1>
-        <canvas id="reportChart"></canvas>
-      </section>
-
-      <!-- Settings Tab -->
-      <section id="settings" class="tab">
-        <h1>Settings</h1>
-        <button id="toggleDark">🌙 Toggle Dark Mode</button>
-        <button id="logout">🚪 Logout</button>
-        <button id="resetData">🗑️ Delete All Data</button>
-      </section>
-    </main>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <img src="LOGOCOMPANY.png" class="logo" alt="Company Logo">
+    <button class="tab-btn" onclick="openTab('overview')">Overview</button>
+    <button class="tab-btn" onclick="openTab('transactions')">Transactions</button>
+    <button class="tab-btn" onclick="openTab('budget')">Budget</button>
+    <button class="tab-btn" onclick="openTab('reports')">Reports</button>
+    <button class="tab-btn" onclick="openTab('news')">Finance News</button>
+    <button class="tab-btn" onclick="openTab('markets')">Markets</button>
+    <button class="tab-btn" onclick="openTab('assistant')">AI Assistant</button>
+    <button class="tab-btn" onclick="openTab('settings')">Settings</button>
   </div>
 
+  <!-- Main Content -->
+  <div class="main">
+    <!-- Overview -->
+    <div id="overview" class="tab-content">
+      <h2>Overview</h2>
+      <canvas id="lineChart"></canvas>
+      <div class="widgets">
+        <div class="widget">
+          <h3>Total Balance</h3>
+          <p id="totalBalance">$0</p>
+        </div>
+        <div class="widget">
+          <h3>Total Transactions</h3>
+          <p id="totalTransactions">0</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transactions -->
+    <div id="transactions" class="tab-content" style="display:none;">
+      <h2>Transactions</h2>
+      <form id="transactionForm">
+        <input type="text" id="desc" placeholder="Description" required>
+        <input type="number" id="amount" placeholder="Amount" required>
+        <select id="month" required>
+          <option value="">Month</option>
+          <option>January</option><option>February</option><option>March</option>
+          <option>April</option><option>May</option><option>June</option>
+          <option>July</option><option>August</option><option>September</option>
+          <option>October</option><option>November</option><option>December</option>
+        </select>
+        <button type="submit">Add</button>
+      </form>
+      <ul id="transactionList"></ul>
+    </div>
+
+    <!-- Budget -->
+    <div id="budget" class="tab-content" style="display:none;">
+      <h2>Budget</h2>
+      <form id="budgetForm">
+        <input type="number" id="budgetAmount" placeholder="Set Monthly Budget" required>
+        <button type="submit">Set</button>
+      </form>
+      <p>Budget: $<span id="budgetValue">0</span></p>
+      <p>Spent: $<span id="spentValue">0</span></p>
+      <div class="progress-bar">
+        <div id="progressFill"></div>
+      </div>
+    </div>
+
+    <!-- Reports -->
+    <div id="reports" class="tab-content" style="display:none;">
+      <h2>Reports</h2>
+      <canvas id="monthlyReport"></canvas>
+    </div>
+
+    <!-- Finance News -->
+    <div id="news" class="tab-content" style="display:none;">
+      <h2>Finance News</h2>
+      <div id="newsFeed"></div>
+    </div>
+
+    <!-- Markets -->
+    <div id="markets" class="tab-content" style="display:none;">
+      <h2>Markets</h2>
+      <div class="market-widgets">
+        <div class="widget"><h3>USD → EUR</h3><p id="usdEur">Loading...</p></div>
+        <div class="widget"><h3>AAPL</h3><p id="appleStock">Loading...</p></div>
+        <div class="widget"><h3>Bitcoin</h3><p id="btcPrice">Loading...</p></div>
+      </div>
+    </div>
+
+    <!-- AI Assistant -->
+    <div id="assistant" class="tab-content" style="display:none;">
+      <h2>AI Assistant</h2>
+      <textarea id="aiQuestion" placeholder="Ask me about your finances..."></textarea>
+      <button onclick="askAssistant()">Ask</button>
+      <div id="aiResponse"></div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings" class="tab-content" style="display:none;">
+      <h2>Settings</h2>
+      <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+      <button onclick="logout()">Logout</button>
+      <button onclick="confirmReset()">Delete Data</button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>
